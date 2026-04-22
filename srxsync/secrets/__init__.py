@@ -8,8 +8,12 @@ _PROVIDERS: dict[str, type[SecretProvider]] = {}
 def _register_defaults() -> None:
     from srxsync.secrets.env import EnvProvider
     from srxsync.secrets.netrc_provider import NetrcProvider
+    from srxsync.secrets.keyring_provider import KeyringProvider
+    from srxsync.secrets.vault import VaultProvider
     _PROVIDERS["env"] = EnvProvider
     _PROVIDERS["netrc"] = NetrcProvider
+    _PROVIDERS["keyring"] = KeyringProvider
+    _PROVIDERS["vault"] = VaultProvider
 
 
 def get_secret(host: str, auth: Auth) -> Secret:

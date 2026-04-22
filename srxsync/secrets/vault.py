@@ -1,0 +1,29 @@
+from __future__ import annotations
+import os
+from srxsync.inventory import Auth
+from srxsync.secrets.base import Secret, SecretError, SecretProvider
+
+try:
+    import hvac as _hvac
+except ImportError:
+    _hvac = None  # type: ignore[assignment]
+
+
+class VaultProvider(SecretProvider):
+    def get(self, host: str, auth: Auth) -> Secret:
+        if _hvac is None:
+            raise SecretError("hvac not installed — pip install srxsync[vault]")
+        if auth.path is None:
+            raise SecretError("vault auth requires 'path'")
+        addr = os.environ.get("VAULT_ADDR")
+        token = os.environ.get("VAULT_TOKEN")
+        if not addr or not token:
+            raise SecretError("VAULT_ADDR and VAULT_TOKEN env vars required")
+        client = _hvac.Client(url=addr, token=token)
+        resp = client.secrets.kv.v2.read_secret_version(path=auth.path)
+        data = resp["data"]["data"]
+        if "username" not in data or "password" not in data:
+            raise SecretError(
+                f"vault secret at {auth.path} must contain username+password"
+            )
+        return Secret(username=data["username"], password=data["password"])
