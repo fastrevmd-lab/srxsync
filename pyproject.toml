@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "srxsync"
+version = "0.1.0"
+description = "Sync Juniper SRX configuration from a master to a fleet of targets"
+requires-python = ">=3.11"
+dependencies = [
+    "junos-eznc>=2.7",
+    "lxml>=5.0",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+keyring = ["keyring>=24"]
+vault = ["hvac>=2.0"]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.5", "mypy>=1.10"]
+
+[project.scripts]
+srxsync = "srxsync.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["srxsync*"]
+
+[tool.setuptools.package-data]
+srxsync = ["data/*.yaml"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: requires real vSRX lab (opt-in via --run-integration)",
+]
