@@ -1,0 +1,5 @@
+source:
+  host: srx-master.example.net
+  auth: { provider: env }
+targets: []
+categories: [objects, not_a_real_category]
