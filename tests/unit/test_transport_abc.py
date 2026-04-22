@@ -1,4 +1,5 @@
 import pytest
+
 from srxsync.transport.base import Transport, TransportError
 
 
@@ -8,8 +9,7 @@ def test_transport_is_abstract():
 
 
 def test_transport_has_required_methods():
-    required = {"connect", "fetch", "load", "commit_confirmed",
-                "confirm", "rollback", "close"}
+    required = {"connect", "fetch", "load", "commit_confirmed", "confirm", "rollback", "close"}
     assert required.issubset(set(dir(Transport)))
 
 

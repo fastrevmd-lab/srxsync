@@ -1,4 +1,5 @@
 import pytest
+
 from srxsync.cli import build_parser
 
 
@@ -10,9 +11,7 @@ def test_push_requires_mode():
 
 def test_push_replace_ok():
     parser = build_parser()
-    args = parser.parse_args(
-        ["push", "--inventory", "x.yaml", "--replace"]
-    )
+    args = parser.parse_args(["push", "--inventory", "x.yaml", "--replace"])
     assert args.mode == "replace"
     assert args.commit_confirmed == 5
     assert args.max_parallel == 5
@@ -21,13 +20,21 @@ def test_push_replace_ok():
 
 def test_push_merge_with_flags():
     parser = build_parser()
-    args = parser.parse_args([
-        "push", "--inventory", "x.yaml", "--merge",
-        "--commit-confirmed", "2",
-        "--max-parallel", "10",
-        "--on-error", "abort",
-        "--dry-run",
-    ])
+    args = parser.parse_args(
+        [
+            "push",
+            "--inventory",
+            "x.yaml",
+            "--merge",
+            "--commit-confirmed",
+            "2",
+            "--max-parallel",
+            "10",
+            "--on-error",
+            "abort",
+            "--dry-run",
+        ]
+    )
     assert args.mode == "merge"
     assert args.commit_confirmed == 2
     assert args.max_parallel == 10
@@ -38,9 +45,15 @@ def test_push_merge_with_flags():
 def test_push_replace_and_merge_mutually_exclusive():
     parser = build_parser()
     with pytest.raises(SystemExit):
-        parser.parse_args([
-            "push", "--inventory", "x.yaml", "--replace", "--merge",
-        ])
+        parser.parse_args(
+            [
+                "push",
+                "--inventory",
+                "x.yaml",
+                "--replace",
+                "--merge",
+            ]
+        )
 
 
 def test_check_subcommand():

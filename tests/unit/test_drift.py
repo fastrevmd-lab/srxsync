@@ -1,6 +1,8 @@
 from pathlib import Path
+
 from lxml import etree
-from srxsync.drift import DriftDetector, DriftReport
+
+from srxsync.drift import DriftDetector
 
 FX = Path(__file__).parent.parent / "fixtures" / "configs"
 
@@ -21,9 +23,7 @@ def test_in_sync_when_identical():
 def test_detects_policy_difference():
     src = _load("source_minimal.xml")
     tgt = _load("target_drift.xml")
-    det = DriftDetector(
-        paths=["/configuration/security/policies"], prune=[], exclude=[]
-    )
+    det = DriftDetector(paths=["/configuration/security/policies"], prune=[], exclude=[])
     rep = det.diff(src, tgt)
     assert rep.in_sync is False
     assert "/configuration/security/policies" in rep.differing_paths

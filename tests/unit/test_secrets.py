@@ -1,6 +1,5 @@
-import os
-from pathlib import Path
 import pytest
+
 from srxsync.inventory import Auth
 from srxsync.secrets import Secret, SecretError, get_secret
 from srxsync.secrets.env import EnvProvider

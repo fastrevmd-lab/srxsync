@@ -1,7 +1,11 @@
 """Drift detection: compare source vs target over a scoped set of XPaths."""
+
 from __future__ import annotations
+
 from dataclasses import dataclass, field
+
 from lxml import etree
+
 from srxsync.diff import DiffBuilder
 
 
@@ -21,9 +25,7 @@ class DriftDetector:
     prune: list[str]
     exclude: list[str]
 
-    def diff(
-        self, source: etree._Element, target: etree._Element, host: str = ""
-    ) -> DriftReport:
+    def diff(self, source: etree._Element, target: etree._Element, host: str = "") -> DriftReport:
         builder = DiffBuilder(paths=self.paths, prune=self.prune, exclude=self.exclude)
         src_scoped = builder.build(source)
         tgt_scoped = builder.build(target)
@@ -43,4 +45,5 @@ class DriftDetector:
 def _canonicalize(node: etree._Element | None) -> bytes:
     if node is None:
         return b""
-    return etree.tostring(node, method="c14n2")
+    result = etree.tostring(node, method="c14n2")
+    return bytes(result) if not isinstance(result, bytes) else result

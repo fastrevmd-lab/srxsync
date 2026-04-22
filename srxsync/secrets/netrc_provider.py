@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import netrc
+
 from srxsync.inventory import Auth
 from srxsync.secrets.base import Secret, SecretError, SecretProvider
 

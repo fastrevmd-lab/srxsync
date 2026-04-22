@@ -1,4 +1,5 @@
 """Abstract transport interface for pushing configuration to a Junos device."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -13,8 +14,14 @@ class TransportError(Exception):
 
 class Transport(ABC):
     @abstractmethod
-    def connect(self, host: str, username: str, password: str | None = None,
-                ssh_key: str | None = None, port: int = 22) -> None: ...
+    def connect(
+        self,
+        host: str,
+        username: str,
+        password: str | None = None,
+        ssh_key: str | None = None,
+        port: int = 22,
+    ) -> None: ...
 
     @abstractmethod
     def fetch(self, paths: list[str]) -> etree._Element: ...

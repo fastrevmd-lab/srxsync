@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 import os
+
 from srxsync.inventory import Auth
 from srxsync.secrets.base import Secret, SecretError, SecretProvider
 
 try:
     import hvac as _hvac
 except ImportError:
-    _hvac = None  # type: ignore[assignment]
+    _hvac = None
 
 
 class VaultProvider(SecretProvider):
@@ -23,7 +25,5 @@ class VaultProvider(SecretProvider):
         resp = client.secrets.kv.v2.read_secret_version(path=auth.path)
         data = resp["data"]["data"]
         if "username" not in data or "password" not in data:
-            raise SecretError(
-                f"vault secret at {auth.path} must contain username+password"
-            )
+            raise SecretError(f"vault secret at {auth.path} must contain username+password")
         return Secret(username=data["username"], password=data["password"])

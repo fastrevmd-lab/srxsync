@@ -1,7 +1,11 @@
 """Inventory loader — parses YAML into typed dataclasses."""
+
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
+
 import yaml
 
 
@@ -61,13 +65,13 @@ def load_inventory(path: Path, *, known_categories: set[str]) -> Inventory:
     return Inventory(source=source, targets=targets, categories=categories)
 
 
-def _parse_auth(raw: dict) -> Auth:
+def _parse_auth(raw: dict[str, Any]) -> Auth:
     if "provider" not in raw:
         raise InventoryError("auth missing provider")
     return Auth(provider=raw["provider"], path=raw.get("path"), key=raw.get("key"))
 
 
-def _parse_device(raw: dict) -> Device:
+def _parse_device(raw: dict[str, Any]) -> Device:
     if "host" not in raw:
         raise InventoryError("device missing host")
     if "auth" not in raw:
@@ -75,7 +79,7 @@ def _parse_device(raw: dict) -> Device:
     return Device(host=raw["host"], auth=_parse_auth(raw["auth"]))
 
 
-def _parse_target(raw: dict) -> Target:
+def _parse_target(raw: dict[str, Any]) -> Target:
     if "host" not in raw:
         raise InventoryError("target missing host")
     if "auth" not in raw:

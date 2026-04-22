@@ -1,12 +1,14 @@
 """srxsync command-line entry point."""
+
 from __future__ import annotations
+
 import argparse
 import asyncio
 import sys
 from pathlib import Path
 
 from srxsync.categories import CategoryModel
-from srxsync.inventory import load_inventory, InventoryError
+from srxsync.inventory import InventoryError, load_inventory
 from srxsync.orchestrator import Orchestrator, RunConfig
 from srxsync.results import DriftSummary, PushSummary
 
@@ -20,8 +22,12 @@ def build_parser() -> argparse.ArgumentParser:
     mode = push.add_mutually_exclusive_group(required=True)
     mode.add_argument("--replace", dest="mode", action="store_const", const="replace")
     mode.add_argument("--merge", dest="mode", action="store_const", const="merge")
-    push.add_argument("--commit-confirmed", type=int, default=5,
-                      help="minutes for commit-confirmed rollback timer (default: 5)")
+    push.add_argument(
+        "--commit-confirmed",
+        type=int,
+        default=5,
+        help="minutes for commit-confirmed rollback timer (default: 5)",
+    )
     push.add_argument("--max-parallel", type=int, default=5)
     push.add_argument("--on-error", choices=["continue", "abort"], default="continue")
     push.add_argument("--dry-run", action="store_true")
@@ -40,9 +46,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         categories = CategoryModel.default()
-        inventory = load_inventory(
-            args.inventory, known_categories=categories.known_names()
-        )
+        inventory = load_inventory(args.inventory, known_categories=categories.known_names())
     except InventoryError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
@@ -57,14 +61,14 @@ def main(argv: list[str] | None = None) -> int:
             on_error=args.on_error,
             dry_run=args.dry_run,
         )
-        summary = asyncio.run(orch.push(cfg))
-        _print_push_summary(summary)
-        return 0 if summary.all_ok else 1
+        push_summary = asyncio.run(orch.push(cfg))
+        _print_push_summary(push_summary)
+        return 0 if push_summary.all_ok else 1
 
     if args.command == "check":
-        summary = asyncio.run(orch.check(args.max_parallel))
-        _print_drift_summary(summary, verbose=args.verbose)
-        return 0 if summary.all_in_sync else 1
+        drift_summary = asyncio.run(orch.check(args.max_parallel))
+        _print_drift_summary(drift_summary, verbose=args.verbose)
+        return 0 if drift_summary.all_in_sync else 1
 
     return 2
 

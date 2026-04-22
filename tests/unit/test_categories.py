@@ -1,5 +1,6 @@
-from srxsync.categories import CategoryModel, CategoryError
 import pytest
+
+from srxsync.categories import CategoryError, CategoryModel
 
 
 def test_default_registry_loads():

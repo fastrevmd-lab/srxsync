@@ -1,6 +1,9 @@
 """Build per-target XML payloads by extracting, pruning, and excluding subtrees."""
+
 from __future__ import annotations
+
 from dataclasses import dataclass
+
 from lxml import etree
 
 
@@ -12,8 +15,7 @@ class DiffBuilder:
 
     def build(self, source: etree._Element) -> etree._Element:
         out = etree.Element("configuration")
-        root = (source if source.tag == "configuration"
-                else source.getroottree().getroot())
+        root = source if source.tag == "configuration" else source.getroottree().getroot()
 
         for abs_path in self.paths:
             rel = abs_path.removeprefix("/configuration/")

@@ -1,5 +1,7 @@
 from pathlib import Path
+
 from lxml import etree
+
 from srxsync.diff import DiffBuilder
 
 FIXTURE = Path(__file__).parent.parent / "fixtures" / "configs" / "source_minimal.xml"
@@ -53,7 +55,8 @@ def test_multiple_paths_all_included():
             "/configuration/security/policies",
             "/configuration/security/nat",
         ],
-        prune=[], exclude=[],
+        prune=[],
+        exclude=[],
     )
     out = builder.build(src)
     assert out.find(".//policies") is not None

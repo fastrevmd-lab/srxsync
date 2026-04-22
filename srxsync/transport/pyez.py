@@ -1,4 +1,5 @@
 """Concrete Transport over PyEZ / NETCONF."""
+
 from __future__ import annotations
 
 import contextlib
@@ -22,12 +23,22 @@ class PyEZTransport(Transport):
         self._dev: Device | None = None
         self._cfg: Config | None = None
 
-    def connect(self, host: str, username: str, password: str | None = None,
-                ssh_key: str | None = None, port: int = 22) -> None:
+    def connect(
+        self,
+        host: str,
+        username: str,
+        password: str | None = None,
+        ssh_key: str | None = None,
+        port: int = 22,
+    ) -> None:
         try:
             self._dev = Device(
-                host=host, user=username, password=password,
-                ssh_private_key_file=ssh_key, port=port, normalize=True,
+                host=host,
+                user=username,
+                password=password,
+                ssh_private_key_file=ssh_key,
+                port=port,
+                normalize=True,
             )
             self._dev.open()
             self._cfg = Config(self._dev, mode="exclusive")
@@ -54,8 +65,9 @@ class PyEZTransport(Transport):
         if self._cfg is None:
             raise TransportError("not connected")
         try:
-            self._cfg.load(etree.tostring(xml).decode(), format="xml",
-                           action=mode, ignore_warning=True)
+            self._cfg.load(
+                etree.tostring(xml).decode(), format="xml", action=mode, ignore_warning=True
+            )
         except ConfigLoadError as e:
             raise TransportError(f"load failed: {e}") from e
 

@@ -1,6 +1,8 @@
 from pathlib import Path
+
 import pytest
-from srxsync.inventory import Inventory, load_inventory, InventoryError
+
+from srxsync.inventory import Inventory, InventoryError, load_inventory
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "inventory"
 KNOWN_CATEGORIES = {"objects", "policies", "nat", "qos", "zones"}
@@ -14,9 +16,7 @@ def test_load_valid_inventory():
     assert len(inv.targets) == 2
     assert inv.targets[0].host == "srx-a.example.net"
     assert inv.targets[0].exclude == []
-    assert inv.targets[1].exclude == [
-        '/configuration/security/nat/static/rule[name="SITE_B"]'
-    ]
+    assert inv.targets[1].exclude == ['/configuration/security/nat/static/rule[name="SITE_B"]']
     assert inv.categories == ["objects", "policies", "nat", "qos", "zones"]
 
 
