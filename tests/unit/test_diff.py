@@ -13,7 +13,7 @@ def _load() -> etree._Element:
 
 def test_single_path_extract():
     src = _load()
-    builder = DiffBuilder(paths=["/configuration/security/policies"], prune=[], exclude=[])
+    builder = DiffBuilder(paths=["/configuration/security/policies"], prune=[])
     out = builder.build(src)
     assert out.tag == "configuration"
     assert out.find(".//policies") is not None
@@ -25,27 +25,12 @@ def test_prune_strips_interface_bindings():
     builder = DiffBuilder(
         paths=["/configuration/security/zones"],
         prune=["security-zone/interfaces"],
-        exclude=[],
     )
     out = builder.build(src)
     zones = out.find(".//zones")
     assert zones is not None
     assert zones.find(".//security-zone/interfaces") is None
     assert zones.find(".//security-zone/host-inbound-traffic") is not None
-
-
-def test_target_exclude_removes_matching_rule():
-    src = _load()
-    builder = DiffBuilder(
-        paths=["/configuration/security/nat"],
-        prune=[],
-        exclude=['/configuration/security/nat/static/rule-set/rule[name="SITE_LOCAL"]'],
-    )
-    out = builder.build(src)
-    rules = out.findall(".//rule")
-    names = [r.find("name").text for r in rules]
-    assert "SITE_LOCAL" not in names
-    assert "COMMON" in names
 
 
 def test_multiple_paths_all_included():
@@ -56,7 +41,6 @@ def test_multiple_paths_all_included():
             "/configuration/security/nat",
         ],
         prune=[],
-        exclude=[],
     )
     out = builder.build(src)
     assert out.find(".//policies") is not None
@@ -65,9 +49,7 @@ def test_multiple_paths_all_included():
 
 def test_merge_mode_does_not_annotate_replace():
     src = _load()
-    builder = DiffBuilder(
-        paths=["/configuration/security/policies"], prune=[], exclude=[]
-    )
+    builder = DiffBuilder(paths=["/configuration/security/policies"], prune=[])
     out = builder.build(src, mode="merge")
     policies = out.find(".//policies")
     assert policies is not None
@@ -82,7 +64,6 @@ def test_replace_mode_annotates_category_roots():
             "/configuration/security/nat",
         ],
         prune=[],
-        exclude=[],
     )
     out = builder.build(src, mode="replace")
     assert out.find(".//policies").get("replace") == "replace"

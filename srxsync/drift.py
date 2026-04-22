@@ -23,17 +23,14 @@ class DriftReport:
 class DriftDetector:
     paths: list[str]
     prune: list[str]
-    exclude: list[str]
 
     def diff(self, source: etree._Element, target: etree._Element, host: str = "") -> DriftReport:
-        builder = DiffBuilder(paths=self.paths, prune=self.prune, exclude=self.exclude)
+        builder = DiffBuilder(paths=self.paths, prune=self.prune)
         src_scoped = builder.build(source)
         tgt_scoped = builder.build(target)
 
         differing: list[str] = []
         for abs_path in self.paths:
-            if abs_path in self.exclude:
-                continue
             rel = abs_path.removeprefix("/configuration/")
             src_node = src_scoped.find(rel)
             tgt_node = tgt_scoped.find(rel)

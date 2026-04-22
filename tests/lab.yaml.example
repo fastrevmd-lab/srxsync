@@ -17,10 +17,8 @@ targets:
   - host: 192.0.2.11
     auth:
       provider: env
-    exclude: []
+    include: [policies]
   - host: 192.0.2.12
     auth:
       provider: env
-    exclude: []
-
-categories: [policies]
+    include: [policies]

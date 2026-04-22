@@ -38,7 +38,15 @@ class Orchestrator:
         self._inv = inventory
         self._cats = categories
         self._tx = transport_factory
-        self._paths, self._prune = categories.resolve(inventory.categories)
+        # Union of every target's include list — what we need to fetch from master.
+        union: list[str] = []
+        seen: set[str] = set()
+        for target in inventory.targets:
+            for name in target.include:
+                if name not in seen:
+                    union.append(name)
+                    seen.add(name)
+        self._union_paths, _ = categories.resolve(union)
 
     async def push(self, cfg: RunConfig) -> PushSummary:
         source_xml = self._fetch_source()
@@ -76,7 +84,7 @@ class Orchestrator:
             self._inv.source.host, secret.username, secret.password, ssh_key=secret.ssh_key_path
         )
         try:
-            return t.fetch(self._paths)
+            return t.fetch(self._union_paths)
         finally:
             t.close()
 
@@ -90,13 +98,10 @@ class Orchestrator:
         start = time.monotonic()
         t = self._tx()
         try:
+            paths, prune = self._cats.resolve(target.include)
             secret = get_secret(host=target.host, auth=target.auth)
             t.connect(target.host, secret.username, secret.password, ssh_key=secret.ssh_key_path)
-            payload = DiffBuilder(
-                paths=self._paths,
-                prune=list(self._prune),
-                exclude=list(target.exclude),
-            ).build(source_xml, mode=cfg.mode)
+            payload = DiffBuilder(paths=paths, prune=list(prune)).build(source_xml, mode=cfg.mode)
 
             if cfg.dry_run:
                 return TargetResult(
@@ -131,14 +136,11 @@ class Orchestrator:
     def _check_target(self, target: Target, source_xml: etree._Element) -> DriftLine:
         t = self._tx()
         try:
+            paths, prune = self._cats.resolve(target.include)
             secret = get_secret(host=target.host, auth=target.auth)
             t.connect(target.host, secret.username, secret.password, ssh_key=secret.ssh_key_path)
-            target_xml = t.fetch(self._paths)
-            detector = DriftDetector(
-                paths=self._paths,
-                prune=list(self._prune),
-                exclude=list(target.exclude),
-            )
+            target_xml = t.fetch(paths)
+            detector = DriftDetector(paths=paths, prune=list(prune))
             rep: DriftReport = detector.diff(source_xml, target_xml, host=target.host)
             return DriftLine(
                 host=target.host,

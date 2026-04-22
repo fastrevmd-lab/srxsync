@@ -4,9 +4,7 @@ source:
 targets:
   - host: srx-a.example.net
     auth: { provider: env }
-    exclude: []
+    include: [objects, policies, nat, qos, zones]
   - host: srx-b.example.net
     auth: { provider: netrc }
-    exclude:
-      - '/configuration/security/nat/static/rule[name="SITE_B"]'
-categories: [objects, policies, nat, qos, zones]
+    include: [policies]

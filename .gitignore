@@ -12,3 +12,4 @@ build/
 htmlcov/
 tests/lab.yaml
 .serena/
+inv.yaml

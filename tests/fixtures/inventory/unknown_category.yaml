@@ -1,5 +1,7 @@
 source:
   host: srx-master.example.net
   auth: { provider: env }
-targets: []
-categories: [objects, not_a_real_category]
+targets:
+  - host: srx-a.example.net
+    auth: { provider: env }
+    include: [objects, not_a_real_category]

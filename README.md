@@ -3,7 +3,7 @@
 Keep a fleet of Juniper SRX firewalls in sync with a designated master SRX.
 Reads selected configuration sections from the master and pushes them to a
 list of target devices, with safety rails (`commit confirmed`), drift
-detection, and per-target overrides.
+detection, and per-target include lists.
 
 Design spec: [`docs/superpowers/specs/2026-04-22-srxsync-design.md`](docs/superpowers/specs/2026-04-22-srxsync-design.md)
 
@@ -36,14 +36,15 @@ Python 3.11+ required.
     targets:
       - host: srx-site-a.example.net
         auth: { provider: env }
-        exclude: []
+        include: [objects, policies, nat, qos, zones]
       - host: srx-site-b.example.net
         auth: { provider: env }
-        exclude:
-          - /configuration/security/nat/static/rule-set/rule[name="SITE_B_LOCAL"]
-
-    categories: [objects, policies, nat, qos, zones]
+        include: [policies, nat]
     ```
+
+    Each target's `include:` explicitly lists the categories it will receive —
+    no top-level default, no implicit inheritance. Read the inventory and you
+    know exactly what every device gets.
 
 2. Provide credentials out-of-band (see [Secrets](#secrets)):
 
@@ -113,7 +114,7 @@ ntp:
     - /configuration/system/ntp
 ```
 
-Then reference `ntp` in your inventory's `categories:` list.
+Then add `ntp` to the `include:` list of whichever targets should receive it.
 
 ## Secrets
 
@@ -182,15 +183,16 @@ CLI → Orchestrator → (CategoryModel, DiffBuilder, DriftDetector, Transport)
 - **CategoryModel** (`categories.py`) — loads `data/categories.yaml`,
   resolves category names → paths + prune rules.
 - **DiffBuilder** (`diff.py`) — extracts source subtrees, applies prune
-  rules and per-target excludes, annotates replace-mode category roots.
+  rules, annotates replace-mode category roots.
 - **DriftDetector** (`drift.py`) — canonical XML compare of source vs
   target within the synced scope.
 - **Transport** (`transport/base.py`) — abstract; v1 implementation is
   `PyEZTransport` (`transport/pyez.py`). A Rust backend (`rustEZ` /
   `rustnetconf`) is a phase-2 drop-in.
 - **Orchestrator** (`orchestrator.py`) — async semaphore-capped fanout,
-  per-target lifecycle (`connect → load → commit confirmed → confirm →
-  close`), `--on-error` handling, aggregate exit code.
+  per-target category resolution and lifecycle (`connect → load → commit
+  confirmed → confirm → close`), `--on-error` handling, aggregate exit code.
+  Master is fetched once with the union of all target includes.
 
 ## License
 

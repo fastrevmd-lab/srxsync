@@ -14,7 +14,7 @@ def _load(name: str) -> etree._Element:
 def test_in_sync_when_identical():
     src = _load("source_minimal.xml")
     tgt = _load("source_minimal.xml")
-    det = DriftDetector(paths=["/configuration/security"], prune=[], exclude=[])
+    det = DriftDetector(paths=["/configuration/security"], prune=[])
     rep = det.diff(src, tgt)
     assert rep.in_sync is True
     assert rep.differing_paths == []
@@ -23,19 +23,7 @@ def test_in_sync_when_identical():
 def test_detects_policy_difference():
     src = _load("source_minimal.xml")
     tgt = _load("target_drift.xml")
-    det = DriftDetector(paths=["/configuration/security/policies"], prune=[], exclude=[])
+    det = DriftDetector(paths=["/configuration/security/policies"], prune=[])
     rep = det.diff(src, tgt)
     assert rep.in_sync is False
     assert "/configuration/security/policies" in rep.differing_paths
-
-
-def test_exclude_masks_difference():
-    src = _load("source_minimal.xml")
-    tgt = _load("target_drift.xml")
-    det = DriftDetector(
-        paths=["/configuration/security/policies"],
-        prune=[],
-        exclude=["/configuration/security/policies"],
-    )
-    rep = det.diff(src, tgt)
-    assert rep.in_sync is True

@@ -1,4 +1,4 @@
 targets:
   - host: srx-a.example.net
     auth: { provider: env }
-categories: [objects]
+    include: [objects]

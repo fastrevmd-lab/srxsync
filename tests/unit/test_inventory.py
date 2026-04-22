@@ -15,9 +15,8 @@ def test_load_valid_inventory():
     assert inv.source.auth.provider == "env"
     assert len(inv.targets) == 2
     assert inv.targets[0].host == "srx-a.example.net"
-    assert inv.targets[0].exclude == []
-    assert inv.targets[1].exclude == ['/configuration/security/nat/static/rule[name="SITE_B"]']
-    assert inv.categories == ["objects", "policies", "nat", "qos", "zones"]
+    assert inv.targets[0].include == ["objects", "policies", "nat", "qos", "zones"]
+    assert inv.targets[1].include == ["policies"]
 
 
 def test_missing_source_raises():

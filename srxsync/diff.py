@@ -1,4 +1,4 @@
-"""Build per-target XML payloads by extracting, pruning, and excluding subtrees."""
+"""Build per-target XML payloads by extracting and pruning subtrees."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ from lxml import etree
 class DiffBuilder:
     paths: list[str]
     prune: list[str]
-    exclude: list[str]
 
     def build(
         self, source: etree._Element, mode: Literal["merge", "replace"] = "merge"
@@ -28,7 +27,6 @@ class DiffBuilder:
                 self._apply_prune(copy)
                 self._graft(out, abs_path, copy)
 
-        self._apply_excludes(out)
         if mode == "replace":
             self._mark_replace(out)
         return out
@@ -49,12 +47,6 @@ class DiffBuilder:
     def _apply_prune(self, node: etree._Element) -> None:
         for rule in self.prune:
             for victim in node.xpath(rule):
-                victim.getparent().remove(victim)
-
-    def _apply_excludes(self, out: etree._Element) -> None:
-        for xpath in self.exclude:
-            rel = xpath.removeprefix("/configuration/")
-            for victim in out.xpath(rel):
                 victim.getparent().remove(victim)
 
     def _graft(self, out: etree._Element, abs_path: str, node: etree._Element) -> None:

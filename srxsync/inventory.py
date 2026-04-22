@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -30,14 +30,13 @@ class Device:
 class Target:
     host: str
     auth: Auth
-    exclude: list[str] = field(default_factory=list)
+    include: list[str]
 
 
 @dataclass(frozen=True)
 class Inventory:
     source: Device
     targets: list[Target]
-    categories: list[str]
 
 
 def load_inventory(path: Path, *, known_categories: set[str]) -> Inventory:
@@ -55,14 +54,9 @@ def load_inventory(path: Path, *, known_categories: set[str]) -> Inventory:
         raise InventoryError("missing required key: source")
     source = _parse_device(data["source"])
 
-    targets = [_parse_target(t) for t in data.get("targets", [])]
+    targets = [_parse_target(t, known_categories=known_categories) for t in data.get("targets", [])]
 
-    categories = list(data.get("categories", []))
-    unknown = [c for c in categories if c not in known_categories]
-    if unknown:
-        raise InventoryError(f"unknown categories: {unknown}")
-
-    return Inventory(source=source, targets=targets, categories=categories)
+    return Inventory(source=source, targets=targets)
 
 
 def _parse_auth(raw: dict[str, Any]) -> Auth:
@@ -79,13 +73,21 @@ def _parse_device(raw: dict[str, Any]) -> Device:
     return Device(host=raw["host"], auth=_parse_auth(raw["auth"]))
 
 
-def _parse_target(raw: dict[str, Any]) -> Target:
+def _parse_target(raw: dict[str, Any], *, known_categories: set[str]) -> Target:
     if "host" not in raw:
         raise InventoryError("target missing host")
     if "auth" not in raw:
         raise InventoryError(f"target {raw['host']} missing auth")
+    if "include" not in raw:
+        raise InventoryError(f"target {raw['host']} missing include")
+    include = list(raw["include"])
+    if not include:
+        raise InventoryError(f"target {raw['host']} include must be non-empty")
+    unknown = [c for c in include if c not in known_categories]
+    if unknown:
+        raise InventoryError(f"target {raw['host']} has unknown categories: {unknown}")
     return Target(
         host=raw["host"],
         auth=_parse_auth(raw["auth"]),
-        exclude=list(raw.get("exclude", [])),
+        include=include,
     )
