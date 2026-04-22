@@ -11,3 +11,4 @@ build/
 .coverage
 htmlcov/
 tests/lab.yaml
+.serena/

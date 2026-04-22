@@ -96,7 +96,7 @@ class Orchestrator:
                 paths=self._paths,
                 prune=list(self._prune),
                 exclude=list(target.exclude),
-            ).build(source_xml)
+            ).build(source_xml, mode=cfg.mode)
 
             if cfg.dry_run:
                 return TargetResult(

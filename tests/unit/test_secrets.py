@@ -26,6 +26,24 @@ def test_env_provider_missing_raises(monkeypatch):
         EnvProvider().get(host="srx-a.example.net", auth=Auth(provider="env"))
 
 
+def test_env_provider_ssh_key(monkeypatch):
+    monkeypatch.setenv("SRX_USER_SRX_A_EXAMPLE_NET", "admin")
+    monkeypatch.delenv("SRX_PASSWORD_SRX_A_EXAMPLE_NET", raising=False)
+    monkeypatch.setenv("SRX_SSH_KEY_SRX_A_EXAMPLE_NET", "~/.ssh/id_ed25519")
+    secret = EnvProvider().get(host="srx-a.example.net", auth=Auth(provider="env"))
+    assert secret.ssh_key_path is not None
+    assert secret.ssh_key_path.endswith("id_ed25519")
+    assert secret.password is None
+
+
+def test_env_provider_needs_pw_or_key(monkeypatch):
+    monkeypatch.setenv("SRX_USER_SRX_A_EXAMPLE_NET", "admin")
+    monkeypatch.delenv("SRX_PASSWORD_SRX_A_EXAMPLE_NET", raising=False)
+    monkeypatch.delenv("SRX_SSH_KEY_SRX_A_EXAMPLE_NET", raising=False)
+    with pytest.raises(SecretError, match="either"):
+        EnvProvider().get(host="srx-a.example.net", auth=Auth(provider="env"))
+
+
 def test_netrc_provider(tmp_path, monkeypatch):
     netrc_file = tmp_path / ".netrc"
     netrc_file.write_text("machine srx-a.example.net login admin password hunter2\n")

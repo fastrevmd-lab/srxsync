@@ -63,4 +63,5 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 markers = [
     "integration: requires real vSRX lab (opt-in via --run-integration)",
+    "slow: long-running test (e.g., 60+ second waits)",
 ]

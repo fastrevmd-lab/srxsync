@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from lxml import etree
 
@@ -13,7 +14,9 @@ class DiffBuilder:
     prune: list[str]
     exclude: list[str]
 
-    def build(self, source: etree._Element) -> etree._Element:
+    def build(
+        self, source: etree._Element, mode: Literal["merge", "replace"] = "merge"
+    ) -> etree._Element:
         out = etree.Element("configuration")
         root = source if source.tag == "configuration" else source.getroottree().getroot()
 
@@ -26,7 +29,22 @@ class DiffBuilder:
                 self._graft(out, abs_path, copy)
 
         self._apply_excludes(out)
+        if mode == "replace":
+            self._mark_replace(out)
         return out
+
+    def _mark_replace(self, out: etree._Element) -> None:
+        """Add replace="replace" attribute on each category-root element.
+
+        For each configured path like /configuration/security/policies, find
+        the element at that path in the payload and set replace="replace".
+        Junos then replaces that subtree wholesale on the target device — the
+        semantic users expect from --replace.
+        """
+        for abs_path in self.paths:
+            rel = abs_path.removeprefix("/configuration/")
+            for node in out.xpath(rel):
+                node.set("replace", "replace")
 
     def _apply_prune(self, node: etree._Element) -> None:
         for rule in self.prune:

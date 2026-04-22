@@ -61,3 +61,31 @@ def test_multiple_paths_all_included():
     out = builder.build(src)
     assert out.find(".//policies") is not None
     assert out.find(".//nat") is not None
+
+
+def test_merge_mode_does_not_annotate_replace():
+    src = _load()
+    builder = DiffBuilder(
+        paths=["/configuration/security/policies"], prune=[], exclude=[]
+    )
+    out = builder.build(src, mode="merge")
+    policies = out.find(".//policies")
+    assert policies is not None
+    assert policies.get("replace") is None
+
+
+def test_replace_mode_annotates_category_roots():
+    src = _load()
+    builder = DiffBuilder(
+        paths=[
+            "/configuration/security/policies",
+            "/configuration/security/nat",
+        ],
+        prune=[],
+        exclude=[],
+    )
+    out = builder.build(src, mode="replace")
+    assert out.find(".//policies").get("replace") == "replace"
+    assert out.find(".//nat").get("replace") == "replace"
+    # Non-category ancestors (<security>) are NOT annotated — would over-wipe
+    assert out.find(".//security").get("replace") is None
