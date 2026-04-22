@@ -1,0 +1,26 @@
+# Copy to tests/lab.yaml and fill in your vSRX lab details.
+# tests/lab.yaml is gitignored.
+#
+# Set credentials via environment variables:
+#   SRX_USER_<HOST>=srxsync
+#   SRX_SSH_KEY_<HOST>=/home/you/.ssh/id_ed25519   (or password)
+# Example for 192.168.1.232:
+#   export SRX_USER_192_168_1_232=srxsync
+#   export SRX_SSH_KEY_192_168_1_232=~/.ssh/id_ed25519
+
+source:
+  host: 192.0.2.10
+  auth:
+    provider: env
+
+targets:
+  - host: 192.0.2.11
+    auth:
+      provider: env
+    exclude: []
+  - host: 192.0.2.12
+    auth:
+      provider: env
+    exclude: []
+
+categories: [policies]
