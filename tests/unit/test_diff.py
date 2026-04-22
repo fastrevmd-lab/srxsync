@@ -22,7 +22,7 @@ def test_prune_strips_interface_bindings():
     src = _load()
     builder = DiffBuilder(
         paths=["/configuration/security/zones"],
-        prune=["security-zone/*/interfaces"],
+        prune=["security-zone/interfaces"],
         exclude=[],
     )
     out = builder.build(src)

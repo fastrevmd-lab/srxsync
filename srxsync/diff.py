@@ -1,6 +1,5 @@
 """Build per-target XML payloads by extracting, pruning, and excluding subtrees."""
 from __future__ import annotations
-import re
 from dataclasses import dataclass
 from lxml import etree
 
@@ -29,9 +28,7 @@ class DiffBuilder:
 
     def _apply_prune(self, node: etree._Element) -> None:
         for rule in self.prune:
-            # Normalize /*/  wildcard segments to // so they match zero-or-more levels
-            flexible_rule = re.sub(r"/\*/", "//", rule)
-            for victim in node.xpath(flexible_rule):
+            for victim in node.xpath(rule):
                 victim.getparent().remove(victim)
 
     def _apply_excludes(self, out: etree._Element) -> None:

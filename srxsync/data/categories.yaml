@@ -15,4 +15,4 @@ zones:
   paths:
     - /configuration/security/zones
   prune:
-    - security-zone/*/interfaces
+    - security-zone/interfaces

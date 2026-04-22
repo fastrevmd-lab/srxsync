@@ -18,7 +18,7 @@ def test_resolve_zones_has_prune():
     model = CategoryModel.default()
     paths, prunes = model.resolve(["zones"])
     assert paths == ["/configuration/security/zones"]
-    assert prunes == ["security-zone/*/interfaces"]
+    assert prunes == ["security-zone/interfaces"]
 
 
 def test_resolve_multiple_dedups_paths():
