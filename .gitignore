@@ -13,3 +13,5 @@ htmlcov/
 tests/lab.yaml
 .serena/
 inv.yaml
+.srxsync.env
+*.srxsync.env
