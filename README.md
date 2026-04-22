@@ -1,16 +1,197 @@
 # srxsync
 
-Sync Juniper SRX configuration from a master to a fleet of targets.
+Keep a fleet of Juniper SRX firewalls in sync with a designated master SRX.
+Reads selected configuration sections from the master and pushes them to a
+list of target devices, with safety rails (`commit confirmed`), drift
+detection, and per-target overrides.
 
-See `docs/superpowers/specs/2026-04-22-srxsync-design.md` for the design.
+Design spec: [`docs/superpowers/specs/2026-04-22-srxsync-design.md`](docs/superpowers/specs/2026-04-22-srxsync-design.md)
 
 ## Install
 
-    python -m venv .venv
-    source .venv/bin/activate
-    pip install -e .[dev]
+```
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+```
 
-## Usage
+Optional extras:
 
-    srxsync push  --inventory inv.yaml (--replace|--merge) [--commit-confirmed N] [--max-parallel N] [--on-error continue|abort] [--dry-run]
-    srxsync check --inventory inv.yaml [--verbose]
+```
+pip install -e .[keyring]   # OS keyring secret provider
+pip install -e .[vault]     # HashiCorp Vault secret provider
+```
+
+Python 3.11+ required.
+
+## Quickstart
+
+1. Write an inventory file (`inv.yaml`):
+
+    ```yaml
+    source:
+      host: srx-master.example.net
+      auth: { provider: env }
+
+    targets:
+      - host: srx-site-a.example.net
+        auth: { provider: env }
+        exclude: []
+      - host: srx-site-b.example.net
+        auth: { provider: env }
+        exclude:
+          - /configuration/security/nat/static/rule-set/rule[name="SITE_B_LOCAL"]
+
+    categories: [objects, policies, nat, qos, zones]
+    ```
+
+2. Provide credentials out-of-band (see [Secrets](#secrets)):
+
+    ```
+    export SRX_USER_SRX_MASTER_EXAMPLE_NET=srxsync
+    export SRX_SSH_KEY_SRX_MASTER_EXAMPLE_NET=~/.ssh/id_ed25519
+    # repeat per target host
+    ```
+
+3. Check first:
+
+    ```
+    srxsync check --inventory inv.yaml --verbose
+    ```
+
+4. Push (always commit-confirmed by default):
+
+    ```
+    srxsync push --inventory inv.yaml --merge --commit-confirmed 5
+    ```
+
+## CLI
+
+```
+srxsync push  --inventory inv.yaml (--replace | --merge)
+              [--commit-confirmed N] [--max-parallel N]
+              [--on-error continue|abort] [--dry-run]
+
+srxsync check --inventory inv.yaml [--verbose]
+```
+
+| Flag | Meaning |
+|---|---|
+| `--replace` / `--merge` | Mutually exclusive. `--replace` annotates each category root with `replace="replace"` so Junos wipes slave-specific siblings within synced subtrees. `--merge` only adds/updates. |
+| `--commit-confirmed N` | Commit with an N-minute auto-rollback timer; srxsync calls `commit` again to seal. Default: 5. |
+| `--max-parallel N` | Concurrent target workers. Default: 5. |
+| `--on-error continue\|abort` | On a per-target failure, continue (exit non-zero at end) or cancel remaining work. Default: continue. |
+| `--dry-run` | Fetch source + compute per-target payload, print what would change, do not load or commit. |
+| `--verbose` (check only) | Show per-category XML diff for drifted targets. |
+
+Exit 0 only when every target succeeded (push) or is in sync (check).
+
+## Categories
+
+Synced scope is defined in [`srxsync/data/categories.yaml`](srxsync/data/categories.yaml):
+
+| Category | Junos paths |
+|---|---|
+| `objects` | `security address-book`, `applications` |
+| `policies` | `security policies` |
+| `nat` | `security nat` |
+| `qos` | `class-of-service` |
+| `zones` | `security zones` (interfaces pruned — device-specific) |
+
+**Excluded from sync:** `interfaces`, `routing-options`, `protocols`, `system`,
+`chassis`, and zone-to-interface bindings. These are device-specific and
+never cross-synced.
+
+### Adding a new category
+
+Adding NTP, SNMP, or anything else is a YAML edit, not a code change. Append
+to `srxsync/data/categories.yaml`:
+
+```yaml
+ntp:
+  paths:
+    - /configuration/system/ntp
+```
+
+Then reference `ntp` in your inventory's `categories:` list.
+
+## Secrets
+
+Credentials never live in the inventory file. `auth.provider` selects a
+`SecretProvider`:
+
+| Provider | Reads |
+|---|---|
+| `env` | `SRX_USER_<HOST>`, `SRX_PASSWORD_<HOST>` or `SRX_SSH_KEY_<HOST>` (tilde-expanded path). Host dots and dashes become underscores. |
+| `netrc` | `~/.netrc` entry matching `machine <host>` |
+| `keyring` | OS keyring slot `srxsync/<auth.key>`, stored as `username:password` |
+| `vault` | HashiCorp Vault path `auth.path`, `VAULT_ADDR` + `VAULT_TOKEN` env |
+
+Example env-var wiring for `srx-a.example.net`:
+
+```
+export SRX_USER_SRX_A_EXAMPLE_NET=srxsync
+export SRX_SSH_KEY_SRX_A_EXAMPLE_NET=~/.ssh/id_ed25519
+```
+
+## Safety
+
+1. **No partial commits.** Every `load` is paired with `commit confirmed` +
+   `confirm`. Script crash or network drop between them → the SRX
+   auto-rolls back after the timer expires.
+2. **Per-target isolation.** One target's failure never affects another
+   (separate `Transport` instances per worker).
+3. **Best-effort cleanup.** On exception, `rollback()` + `close()` run;
+   cleanup errors are swallowed so the original error is preserved.
+4. **Honest exit code.** Exit 0 only if every target reported success;
+   `--on-error continue` does not mask failures.
+
+## Testing
+
+Two layers, no device mocks.
+
+```
+pytest tests/unit/            # pure logic against XML fixtures
+pytest tests/integration/     # real vSRX lab (skipped if tests/lab.yaml missing)
+```
+
+### Lab setup
+
+Copy `tests/lab.yaml.example` to `tests/lab.yaml` (gitignored) and fill in
+three vSRX hosts (one master + two slaves). Export credentials per host, or
+set the defaults once:
+
+```
+export SRXSYNC_LAB_USER=srxsync
+export SRXSYNC_LAB_SSH_KEY=~/.ssh/id_ed25519
+```
+
+The lab tests exercise the full pipeline — drift detection, merge sync,
+`--replace` wipe, and commit-confirmed auto-rollback. The last test waits
+75 seconds for the Junos rollback timer, so expect ~100s for a full
+integration run.
+
+## Architecture
+
+```
+CLI → Orchestrator → (CategoryModel, DiffBuilder, DriftDetector, Transport)
+                      │                                            │
+                      └──── SecretProvider (env/netrc/keyring/vault)
+```
+
+- **CategoryModel** (`categories.py`) — loads `data/categories.yaml`,
+  resolves category names → paths + prune rules.
+- **DiffBuilder** (`diff.py`) — extracts source subtrees, applies prune
+  rules and per-target excludes, annotates replace-mode category roots.
+- **DriftDetector** (`drift.py`) — canonical XML compare of source vs
+  target within the synced scope.
+- **Transport** (`transport/base.py`) — abstract; v1 implementation is
+  `PyEZTransport` (`transport/pyez.py`). A Rust backend (`rustEZ` /
+  `rustnetconf`) is a phase-2 drop-in.
+- **Orchestrator** (`orchestrator.py`) — async semaphore-capped fanout,
+  per-target lifecycle (`connect → load → commit confirmed → confirm →
+  close`), `--on-error` handling, aggregate exit code.
+
+## License
+
+TBD.
