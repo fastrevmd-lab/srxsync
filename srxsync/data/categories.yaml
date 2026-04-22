@@ -1,0 +1,18 @@
+objects:
+  paths:
+    - /configuration/security/address-book
+    - /configuration/applications
+policies:
+  paths:
+    - /configuration/security/policies
+nat:
+  paths:
+    - /configuration/security/nat
+qos:
+  paths:
+    - /configuration/class-of-service
+zones:
+  paths:
+    - /configuration/security/zones
+  prune:
+    - security-zone/*/interfaces
