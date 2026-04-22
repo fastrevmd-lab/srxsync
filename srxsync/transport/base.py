@@ -1,7 +1,9 @@
 """Abstract transport interface for pushing configuration to a Junos device."""
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import Literal
+
 from lxml import etree
 
 
