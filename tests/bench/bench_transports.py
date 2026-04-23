@@ -21,9 +21,9 @@ target (merge, then commit-confirmed with a 60 s rollback window).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import sys
 import time
-from dataclasses import replace
 from pathlib import Path
 
 from srxsync.categories import CategoryModel
@@ -33,7 +33,9 @@ from srxsync.secrets import get_secret
 from srxsync.transport import make_transport
 
 
-def load_config(inventory_path: Path = Path("inv.yaml")) -> tuple[Inventory, CategoryModel, list[str]]:
+def load_config(
+    inventory_path: Path = Path("inv.yaml"),
+) -> tuple[Inventory, CategoryModel, list[str]]:
     """Load inventory + categories, resolve the fetch include-union.
 
     Returns:
@@ -55,7 +57,12 @@ def load_config(inventory_path: Path = Path("inv.yaml")) -> tuple[Inventory, Cat
     return inventory, categories, union_paths
 
 
-def bench_fetch(backend: str, inventory: Inventory, union_paths: list[str], iters: int = 20) -> list[float]:
+def bench_fetch(
+    backend: str,
+    inventory: Inventory,
+    union_paths: list[str],
+    iters: int = 20,
+) -> list[float]:
     """Measure wall-clock seconds for `iters` fetch cycles under the given backend.
 
     Each iteration:   connect(source) → fetch(union_paths) → close
@@ -84,20 +91,21 @@ def bench_fetch(backend: str, inventory: Inventory, union_paths: list[str], iter
                 f"after {elapsed:.2f}s: {exc}",
                 file=sys.stderr,
             )
-            try:
+            with contextlib.suppress(Exception):
                 transport.close()
-            except Exception:
-                pass
             return samples
-        try:
+        with contextlib.suppress(Exception):
             transport.close()
-        except Exception:
-            pass
         samples.append(time.perf_counter() - start)
     return samples
 
 
-def bench_push(backend: str, inventory: Inventory, categories: CategoryModel, iters: int = 3) -> list[float]:
+def bench_push(
+    backend: str,
+    inventory: Inventory,
+    categories: CategoryModel,
+    iters: int = 3,
+) -> list[float]:
     """Measure wall-clock seconds for `iters` full merge-push cycles under `backend`.
 
     Each iteration runs Orchestrator.push against a single-target inventory
@@ -142,11 +150,6 @@ def bench_push(backend: str, inventory: Inventory, categories: CategoryModel, it
             )
             return samples
     return samples
-
-
-# `replace` from dataclasses is re-exported here for future tweaking (e.g. dry-run);
-# silence linters if it ends up unused.
-_ = replace
 
 
 def main() -> int:
