@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import statistics
 import sys
 import time
 from pathlib import Path
@@ -152,16 +153,72 @@ def bench_push(
     return samples
 
 
-def main() -> int:
-    inventory, categories, _union_paths = load_config()
-    print("# Transport benchmark (push smoke)\n")
-    print(f"Source: {inventory.source.host}  Push target: {inventory.targets[0].host}\n")
+def _fmt_duration(seconds: float, unit: str) -> str:
+    """Render a duration in ms or s, 3 significant figures."""
+    if unit == "ms":
+        return f"{seconds * 1000:.0f}ms"
+    return f"{seconds:.1f}s"
 
-    push_samples = bench_push("pyez", inventory, categories, iters=1)
-    if push_samples:
-        print(f"pyez push sample (n=1, smoke): {push_samples[0]:.1f}s")
-    else:
-        print("pyez push smoke: failed (see stderr)")
+
+def _row(backend: str, op: str, samples: list[float], unit: str) -> str:
+    """Render one markdown table row. Missing/empty samples produce a 'FAILED' row."""
+    if not samples:
+        return f"| {backend:<7} | {op:<5} | 0 | FAILED | FAILED | FAILED | FAILED |"
+    n = len(samples)
+    mn = min(samples)
+    md = statistics.median(samples)
+    mean = statistics.fmean(samples)
+    sd = statistics.stdev(samples) if n > 1 else 0.0
+    return (
+        f"| {backend:<7} | {op:<5} | {n:>2} | "
+        f"{_fmt_duration(mn, unit):>7} | "
+        f"{_fmt_duration(md, unit):>7} | "
+        f"{_fmt_duration(mean, unit):>7} | "
+        f"{_fmt_duration(sd, unit):>7} |"
+    )
+
+
+def render_table(
+    *,
+    inventory: Inventory,
+    fetch_iters: int,
+    push_iters: int,
+    results: dict[tuple[str, str], list[float]],
+) -> str:
+    """Build the final markdown table. `results` is keyed by (backend, op)."""
+    header = [
+        "## Transport benchmark",
+        "",
+        f"Inventory: inv.yaml  |  Source: {inventory.source.host}  |  "
+        f"Push target: {inventory.targets[0].host}",
+        f"Fetch iters: {fetch_iters}  |  Push iters: {push_iters}  |  "
+        f"Commit-confirmed: 60s",
+        "",
+        "| backend | op    |  n |     min |  median |    mean |   stdev |",
+        "|---------|-------|---:|--------:|--------:|--------:|--------:|",
+    ]
+    rows: list[str] = []
+    for backend in ("pyez", "rustez"):
+        rows.append(_row(backend, "fetch", results.get((backend, "fetch"), []), "ms"))
+    for backend in ("pyez", "rustez"):
+        rows.append(_row(backend, "push", results.get((backend, "push"), []), "s"))
+    return "\n".join(header + rows)
+
+
+def main() -> int:
+    inventory, _, _ = load_config()
+    fake_results = {
+        ("pyez",   "fetch"): [5.012, 4.832, 5.201, 5.041, 4.998],
+        ("rustez", "fetch"): [0.874, 0.812, 0.889, 0.901, 0.867],
+        ("pyez",   "push"):  [68.1, 68.4, 68.5],
+        ("rustez", "push"):  [64.2, 64.5, 64.4],
+    }
+    print(render_table(
+        inventory=inventory,
+        fetch_iters=20,
+        push_iters=3,
+        results=fake_results,
+    ))
     return 0
 
 
