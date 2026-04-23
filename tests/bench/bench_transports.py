@@ -205,21 +205,59 @@ def render_table(
     return "\n".join(header + rows)
 
 
+FETCH_ITERS = 20
+PUSH_ITERS = 3
+
+
+def _rustez_available() -> bool:
+    """True iff the rustez optional extra is importable."""
+    try:
+        make_transport("rustez")
+    except ImportError:
+        return False
+    return True
+
+
 def main() -> int:
-    inventory, _, _ = load_config()
-    fake_results = {
-        ("pyez",   "fetch"): [5.012, 4.832, 5.201, 5.041, 4.998],
-        ("rustez", "fetch"): [0.874, 0.812, 0.889, 0.901, 0.867],
-        ("pyez",   "push"):  [68.1, 68.4, 68.5],
-        ("rustez", "push"):  [64.2, 64.5, 64.4],
-    }
+    inventory, categories, union_paths = load_config()
+
+    backends: list[str] = ["pyez"]
+    rustez_ok = _rustez_available()
+    if rustez_ok:
+        backends.append("rustez")
+    else:
+        print(
+            "warning: rustez extra not installed — running pyez-only. "
+            "Install with: pip install -e .[rust]",
+            file=sys.stderr,
+        )
+
+    print(
+        f"# running bench: fetch={FETCH_ITERS} iter, push={PUSH_ITERS} iter, "
+        f"backends={backends}",
+        file=sys.stderr,
+    )
+
+    results: dict[tuple[str, str], list[float]] = {}
+    for backend in backends:
+        print(f"# bench_fetch[{backend}] ...", file=sys.stderr)
+        results[(backend, "fetch")] = bench_fetch(
+            backend, inventory, union_paths, iters=FETCH_ITERS
+        )
+        print(f"# bench_push[{backend}] ...", file=sys.stderr)
+        results[(backend, "push")] = bench_push(
+            backend, inventory, categories, iters=PUSH_ITERS
+        )
+
     print(render_table(
         inventory=inventory,
-        fetch_iters=20,
-        push_iters=3,
-        results=fake_results,
+        fetch_iters=FETCH_ITERS,
+        push_iters=PUSH_ITERS,
+        results=results,
     ))
-    return 0
+
+    # Non-zero exit when a backend was degraded, per spec §Graceful degradation.
+    return 0 if rustez_ok else 1
 
 
 if __name__ == "__main__":
