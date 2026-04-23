@@ -33,7 +33,6 @@ _RUSTEZ_ERRORS: tuple[type[Exception], ...] = (
     ConnectTimeoutError,
     ConfigLoadError,
     RpcError,
-    RuntimeError,  # rustez occasionally surfaces bare RuntimeErrors
 )
 
 
@@ -92,13 +91,10 @@ class RustezTransport(Transport):
             reply = self._dev.rpc.get_config(filter_xml=filter_xml)
         except _RUSTEZ_ERRORS as exc:
             raise TransportError(f"fetch failed on {self._host}: {exc}") from exc
-        # rustez strips namespaces and usually returns <rpc-reply><data><configuration>..</>.
-        # We want the <configuration> element. Fall back gracefully.
         cfg = reply.find(".//configuration")
+        if cfg is None and reply.tag == "configuration":
+            cfg = reply
         if cfg is None:
-            # If rustez returned the <configuration> root directly.
-            if reply.tag == "configuration":
-                return reply
             raise TransportError(f"fetch on {self._host} returned no <configuration> element")
         return cfg
 
@@ -117,13 +113,8 @@ class RustezTransport(Transport):
             except _RUSTEZ_ERRORS as exc:
                 raise TransportError(f"lock failed on {self._host}: {exc}") from exc
             self._locked = True
-        content = etree.tostring(xml).decode()
         try:
-            # Merge vs replace is expressed by replace="replace" attributes
-            # already on the payload (DiffBuilder sets them). rustez's
-            # load() defaults to merge semantics at the NETCONF layer,
-            # which respects our per-element replace attribute.
-            self._cfg.load(content, format="xml")
+            self._cfg.load(etree.tostring(xml).decode(), format="xml", action=mode)
         except _RUSTEZ_ERRORS as exc:
             raise TransportError(f"load failed on {self._host}: {exc}") from exc
 
