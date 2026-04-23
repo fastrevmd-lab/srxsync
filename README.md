@@ -20,6 +20,7 @@ Optional extras:
 ```
 pip install -e .[keyring]   # OS keyring secret provider
 pip install -e .[vault]     # HashiCorp Vault secret provider
+pip install -e .[rust]      # rustez NETCONF backend (selectable via --transport rustez)
 ```
 
 Python 3.11+ required.
@@ -72,8 +73,9 @@ Python 3.11+ required.
 srxsync push  --inventory inv.yaml (--replace | --merge)
               [--commit-confirmed N] [--max-parallel N]
               [--on-error continue|abort] [--dry-run]
+              [--transport {pyez,rustez}]
 
-srxsync check --inventory inv.yaml [--verbose]
+srxsync check --inventory inv.yaml [--verbose] [--transport {pyez,rustez}]
 ```
 
 | Flag | Meaning |
@@ -84,6 +86,7 @@ srxsync check --inventory inv.yaml [--verbose]
 | `--on-error continue\|abort` | On a per-target failure, continue (exit non-zero at end) or cancel remaining work. Default: continue. |
 | `--dry-run` | Fetch source + compute per-target payload, print what would change, do not load or commit. |
 | `--verbose` (check only) | Show per-category XML diff for drifted targets. |
+| `--transport {pyez,rustez}` | NETCONF backend. `pyez` (default) is junos-eznc; `rustez` is the Rust-backed client (install with `pip install -e .[rust]`). Both produce identical results; `rustez` is faster for large fleets. |
 
 Exit 0 only when every target succeeded (push) or is in sync (check).
 
@@ -168,9 +171,11 @@ export SRXSYNC_LAB_SSH_KEY=~/.ssh/id_ed25519
 ```
 
 The lab tests exercise the full pipeline — drift detection, merge sync,
-`--replace` wipe, and commit-confirmed auto-rollback. The last test waits
-75 seconds for the Junos rollback timer, so expect ~100s for a full
-integration run.
+`--replace` wipe, and commit-confirmed auto-rollback. Every test is
+parametrized over both transports (`pyez` and `rustez`) when the `[rust]`
+extra is installed; rustez cases are skipped cleanly otherwise. The
+commit-confirmed test waits 75 seconds for the Junos rollback timer, so
+expect ~3–4 minutes for a full integration run across both backends.
 
 ## Architecture
 
@@ -186,9 +191,13 @@ CLI → Orchestrator → (CategoryModel, DiffBuilder, DriftDetector, Transport)
   rules, annotates replace-mode category roots.
 - **DriftDetector** (`drift.py`) — canonical XML compare of source vs
   target within the synced scope.
-- **Transport** (`transport/base.py`) — abstract; v1 implementation is
-  `PyEZTransport` (`transport/pyez.py`). A Rust backend (`rustEZ` /
-  `rustnetconf`) is a phase-2 drop-in.
+- **Transport** (`transport/base.py`) — abstract; two concrete backends
+  selected at runtime via `--transport`:
+  - `PyEZTransport` (`transport/pyez.py`) — junos-eznc, default.
+  - `RustezTransport` (`transport/rustez.py`) — Rust-backed via
+    [rustez](https://github.com/fastrevmd-lab/rustEZ) + rustnetconf,
+    gated by the `[rust]` extra. Integration tests parametrize both
+    backends so parity is enforced.
 - **Orchestrator** (`orchestrator.py`) — async semaphore-capped fanout,
   per-target category resolution and lifecycle (`connect → load → commit
   confirmed → confirm → close`), `--on-error` handling, aggregate exit code.
