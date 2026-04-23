@@ -194,6 +194,27 @@ CLI → Orchestrator → (CategoryModel, DiffBuilder, DriftDetector, Transport)
   confirmed → confirm → close`), `--on-error` handling, aggregate exit code.
   Master is fetched once with the union of all target includes.
 
+## Branches
+
+Two tracks are maintained in parallel:
+
+- **`master`** — pure-Python reference implementation. Transport is
+  [PyEZ](https://github.com/Juniper/py-junos-eznc) (`jnpr.junos`) over
+  NETCONF/SSH. This is the stable, dependency-light branch; install with
+  `pip install -e .[dev]` and go.
+- **`rustperformance`** — hybrid Python/Rust. Adds a second transport
+  backend (`RustezTransport`) built on
+  [rustEZ](https://crates.io/crates/rustez) /
+  [rustnetconf](https://crates.io/crates/rustnetconf), selectable at
+  runtime via `--transport {pyez,rustez}`. The Rust backend ships as an
+  optional extra (`pip install -e .[rust,dev]`) and is validated against
+  PyEZ by a canonical-XML parity test plus a parametrized lab suite.
+  PyEZ remains the default.
+
+The two branches are intentionally **not** merged — `master` stays
+Rust-free for deployments that cannot or do not want to pull a Rust
+toolchain, while `rustperformance` is the opt-in performance track.
+
 ## License
 
 TBD.
