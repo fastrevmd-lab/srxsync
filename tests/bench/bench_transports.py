@@ -20,12 +20,15 @@ target (merge, then commit-confirmed with a 60 s rollback window).
 
 from __future__ import annotations
 
+import asyncio
 import sys
 import time
+from dataclasses import replace
 from pathlib import Path
 
 from srxsync.categories import CategoryModel
 from srxsync.inventory import Inventory, load_inventory
+from srxsync.orchestrator import Orchestrator, RunConfig
 from srxsync.secrets import get_secret
 from srxsync.transport import make_transport
 
@@ -94,14 +97,68 @@ def bench_fetch(backend: str, inventory: Inventory, union_paths: list[str], iter
     return samples
 
 
-def main() -> int:
-    inventory, _, union_paths = load_config()
-    print(f"# Transport benchmark (fetch only, scaffolding)\n")
-    print(f"Source: {inventory.source.host}")
-    print(f"Union includes: {len(union_paths)} path(s)\n")
+def bench_push(backend: str, inventory: Inventory, categories: CategoryModel, iters: int = 3) -> list[float]:
+    """Measure wall-clock seconds for `iters` full merge-push cycles under `backend`.
 
-    pyez_samples = bench_fetch("pyez", inventory, union_paths, iters=2)
-    print(f"pyez fetch samples (n=2, smoke): {[f'{s*1000:.0f}ms' for s in pyez_samples]}")
+    Each iteration runs Orchestrator.push against a single-target inventory
+    (targets[0]) with commit_confirmed=1 minute. Uses asyncio.run so the
+    measured interval includes the event-loop startup, matching CLI reality.
+
+    Aborts the (backend, op) pair on the first failure; returns any samples
+    gathered before that.
+    """
+    transport_cls = make_transport(backend)
+    # Shrink the inventory to the first target — spec §Inputs: "targets[0]".
+    single = Inventory(source=inventory.source, targets=[inventory.targets[0]])
+    cfg = RunConfig(
+        mode="merge",
+        commit_confirmed_minutes=1,
+        max_parallel=1,
+        on_error="abort",
+        dry_run=False,
+    )
+    samples: list[float] = []
+    for iteration in range(iters):
+        orchestrator = Orchestrator(single, categories, transport_factory=transport_cls)
+        start = time.perf_counter()
+        try:
+            summary = asyncio.run(orchestrator.push(cfg))
+            elapsed = time.perf_counter() - start
+            result = summary.results[0]
+            if not result.ok:
+                print(
+                    f"bench_push[{backend}] iter {iteration + 1}/{iters} failed "
+                    f"after {elapsed:.2f}s: {result.error}",
+                    file=sys.stderr,
+                )
+                return samples
+            samples.append(elapsed)
+        except Exception as exc:
+            elapsed = time.perf_counter() - start
+            print(
+                f"bench_push[{backend}] iter {iteration + 1}/{iters} raised "
+                f"after {elapsed:.2f}s: {exc}",
+                file=sys.stderr,
+            )
+            return samples
+    return samples
+
+
+# `replace` from dataclasses is re-exported here for future tweaking (e.g. dry-run);
+# silence linters if it ends up unused.
+_ = replace
+
+
+def main() -> int:
+    inventory, categories, _union_paths = load_config()
+    print("# Transport benchmark (push smoke)\n")
+    print(f"Source: {inventory.source.host}  Push target: {inventory.targets[0].host}\n")
+
+    push_samples = bench_push("pyez", inventory, categories, iters=1)
+    if push_samples:
+        print(f"pyez push sample (n=1, smoke): {push_samples[0]:.1f}s")
+    else:
+        print("pyez push smoke: failed (see stderr)")
     return 0
 
 
