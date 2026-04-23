@@ -203,6 +203,20 @@ CLI → Orchestrator → (CategoryModel, DiffBuilder, DriftDetector, Transport)
   confirmed → confirm → close`), `--on-error` handling, aggregate exit code.
   Master is fetched once with the union of all target includes.
 
+## Benchmarking
+
+A lightweight wall-time comparator lives at
+[`tests/bench/bench_transports.py`](tests/bench/bench_transports.py):
+
+    source .venv/bin/activate
+    source ~/.srxsync.env
+    python tests/bench/bench_transports.py
+
+It measures 20 fetches and 3 merge-pushes per backend against the
+inventory in `inv.yaml` and prints a markdown table. See
+[`docs/superpowers/specs/2026-04-23-transport-benchmark-design.md`](docs/superpowers/specs/2026-04-23-transport-benchmark-design.md)
+for the exact measurement contract.
+
 ## License
 
 TBD.
