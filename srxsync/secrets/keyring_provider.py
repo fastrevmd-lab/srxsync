@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from types import ModuleType
+
 from srxsync.inventory import Auth
 from srxsync.secrets.base import Secret, SecretError, SecretProvider
 
+_keyring: ModuleType | None
 try:
     import keyring as _keyring
 except ImportError:
