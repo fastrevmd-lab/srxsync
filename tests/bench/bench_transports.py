@@ -21,10 +21,13 @@ target (merge, then commit-confirmed with a 60 s rollback window).
 from __future__ import annotations
 
 import sys
+import time
 from pathlib import Path
 
 from srxsync.categories import CategoryModel
 from srxsync.inventory import Inventory, load_inventory
+from srxsync.secrets import get_secret
+from srxsync.transport import make_transport
 
 
 def load_config(inventory_path: Path = Path("inv.yaml")) -> tuple[Inventory, CategoryModel, list[str]]:
@@ -49,11 +52,56 @@ def load_config(inventory_path: Path = Path("inv.yaml")) -> tuple[Inventory, Cat
     return inventory, categories, union_paths
 
 
+def bench_fetch(backend: str, inventory: Inventory, union_paths: list[str], iters: int = 20) -> list[float]:
+    """Measure wall-clock seconds for `iters` fetch cycles under the given backend.
+
+    Each iteration:   connect(source) → fetch(union_paths) → close
+    Aborts this (backend, op) pair if any iteration raises. Returns any
+    samples collected before the failure; prints the error to stderr.
+    """
+    transport_cls = make_transport(backend)
+    samples: list[float] = []
+    src = inventory.source
+    secret = get_secret(host=src.host, auth=src.auth)
+    for iteration in range(iters):
+        transport = transport_cls()
+        start = time.perf_counter()
+        try:
+            transport.connect(
+                src.host,
+                secret.username,
+                secret.password,
+                ssh_key=secret.ssh_key_path,
+            )
+            transport.fetch(union_paths)
+        except Exception as exc:
+            elapsed = time.perf_counter() - start
+            print(
+                f"bench_fetch[{backend}] iter {iteration + 1}/{iters} failed "
+                f"after {elapsed:.2f}s: {exc}",
+                file=sys.stderr,
+            )
+            try:
+                transport.close()
+            except Exception:
+                pass
+            return samples
+        try:
+            transport.close()
+        except Exception:
+            pass
+        samples.append(time.perf_counter() - start)
+    return samples
+
+
 def main() -> int:
     inventory, _, union_paths = load_config()
-    print(f"bench_transports: source={inventory.source.host}")
-    print(f"bench_transports: push target={inventory.targets[0].host}")
-    print(f"bench_transports: union includes {len(union_paths)} path(s)")
+    print(f"# Transport benchmark (fetch only, scaffolding)\n")
+    print(f"Source: {inventory.source.host}")
+    print(f"Union includes: {len(union_paths)} path(s)\n")
+
+    pyez_samples = bench_fetch("pyez", inventory, union_paths, iters=2)
+    print(f"pyez fetch samples (n=2, smoke): {[f'{s*1000:.0f}ms' for s in pyez_samples]}")
     return 0
 
 
