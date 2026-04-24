@@ -27,3 +27,27 @@ def test_detects_policy_difference():
     rep = det.diff(src, tgt)
     assert rep.in_sync is False
     assert "/configuration/security/policies" in rep.differing_paths
+
+
+def test_detects_system_category_drift_granularity():
+    """Drift is reported per-category: ntp/time-zone/name-server drift but syslog
+    and domain-name do not, proving category-level granularity."""
+    src = _load("source_minimal.xml")
+    tgt = _load("target_drift.xml")
+    det = DriftDetector(
+        paths=[
+            "/configuration/system/name-server",
+            "/configuration/system/ntp",
+            "/configuration/system/syslog",
+            "/configuration/system/domain-name",
+            "/configuration/system/time-zone",
+        ],
+        prune=[],
+    )
+    rep = det.diff(src, tgt)
+    assert rep.in_sync is False
+    assert "/configuration/system/ntp" in rep.differing_paths
+    assert "/configuration/system/time-zone" in rep.differing_paths
+    assert "/configuration/system/name-server" in rep.differing_paths
+    assert "/configuration/system/syslog" not in rep.differing_paths
+    assert "/configuration/system/domain-name" not in rep.differing_paths

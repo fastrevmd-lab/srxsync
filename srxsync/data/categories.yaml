@@ -16,3 +16,18 @@ zones:
     - /configuration/security/zones
   prune:
     - security-zone/interfaces
+name-servers:
+  paths:
+    - /configuration/system/name-server
+ntp:
+  paths:
+    - /configuration/system/ntp
+syslog:
+  paths:
+    - /configuration/system/syslog
+domain-name:
+  paths:
+    - /configuration/system/domain-name
+time-zone:
+  paths:
+    - /configuration/system/time-zone
