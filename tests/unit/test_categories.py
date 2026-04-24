@@ -5,7 +5,53 @@ from srxsync.categories import CategoryError, CategoryModel
 
 def test_default_registry_loads():
     model = CategoryModel.default()
-    assert set(model.known_names()) == {"objects", "policies", "nat", "qos", "zones"}
+    assert set(model.known_names()) == {
+        "objects",
+        "policies",
+        "nat",
+        "qos",
+        "zones",
+        "name-servers",
+        "ntp",
+        "syslog",
+        "domain-name",
+        "time-zone",
+    }
+
+
+def test_resolve_name_servers():
+    model = CategoryModel.default()
+    paths, prunes = model.resolve(["name-servers"])
+    assert paths == ["/configuration/system/name-server"]
+    assert prunes == []
+
+
+def test_resolve_ntp():
+    model = CategoryModel.default()
+    paths, prunes = model.resolve(["ntp"])
+    assert paths == ["/configuration/system/ntp"]
+    assert prunes == []
+
+
+def test_resolve_syslog():
+    model = CategoryModel.default()
+    paths, prunes = model.resolve(["syslog"])
+    assert paths == ["/configuration/system/syslog"]
+    assert prunes == []
+
+
+def test_resolve_domain_name():
+    model = CategoryModel.default()
+    paths, prunes = model.resolve(["domain-name"])
+    assert paths == ["/configuration/system/domain-name"]
+    assert prunes == []
+
+
+def test_resolve_time_zone():
+    model = CategoryModel.default()
+    paths, prunes = model.resolve(["time-zone"])
+    assert paths == ["/configuration/system/time-zone"]
+    assert prunes == []
 
 
 def test_resolve_single_category():

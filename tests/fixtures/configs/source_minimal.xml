@@ -1,4 +1,30 @@
 <configuration>
+  <system>
+    <domain-name>example.net</domain-name>
+    <time-zone>UTC</time-zone>
+    <name-server>
+      <name>8.8.8.8</name>
+    </name-server>
+    <name-server>
+      <name>1.1.1.1</name>
+    </name-server>
+    <ntp>
+      <server>
+        <name>10.0.0.1</name>
+      </server>
+      <server>
+        <name>10.0.0.2</name>
+      </server>
+    </ntp>
+    <syslog>
+      <host>
+        <name>10.10.10.10</name>
+        <any>
+          <name>any</name>
+        </any>
+      </host>
+    </syslog>
+  </system>
   <security>
     <address-book>
       <name>global</name>

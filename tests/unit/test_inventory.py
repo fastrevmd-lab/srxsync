@@ -5,7 +5,18 @@ import pytest
 from srxsync.inventory import Inventory, InventoryError, load_inventory
 
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "inventory"
-KNOWN_CATEGORIES = {"objects", "policies", "nat", "qos", "zones"}
+KNOWN_CATEGORIES = {
+    "objects",
+    "policies",
+    "nat",
+    "qos",
+    "zones",
+    "name-servers",
+    "ntp",
+    "syslog",
+    "domain-name",
+    "time-zone",
+}
 
 
 def test_load_valid_inventory():
@@ -15,7 +26,18 @@ def test_load_valid_inventory():
     assert inv.source.auth.provider == "env"
     assert len(inv.targets) == 2
     assert inv.targets[0].host == "srx-a.example.net"
-    assert inv.targets[0].include == ["objects", "policies", "nat", "qos", "zones"]
+    assert inv.targets[0].include == [
+        "objects",
+        "policies",
+        "nat",
+        "qos",
+        "zones",
+        "name-servers",
+        "ntp",
+        "syslog",
+        "domain-name",
+        "time-zone",
+    ]
     assert inv.targets[1].include == ["policies"]
 
 

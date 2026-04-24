@@ -56,6 +56,52 @@ def test_merge_mode_does_not_annotate_replace():
     assert policies.get("replace") is None
 
 
+def test_extract_name_servers():
+    src = _load()
+    builder = DiffBuilder(paths=["/configuration/system/name-server"], prune=[])
+    out = builder.build(src)
+    assert out.find(".//system/name-server") is not None
+    assert out.find(".//ntp") is None
+    assert out.find(".//policies") is None
+
+
+def test_extract_ntp():
+    src = _load()
+    builder = DiffBuilder(paths=["/configuration/system/ntp"], prune=[])
+    out = builder.build(src)
+    assert out.find(".//system/ntp") is not None
+    assert out.find(".//name-server") is None
+    assert out.find(".//policies") is None
+
+
+def test_extract_syslog():
+    src = _load()
+    builder = DiffBuilder(paths=["/configuration/system/syslog"], prune=[])
+    out = builder.build(src)
+    assert out.find(".//system/syslog") is not None
+    assert out.find(".//ntp") is None
+
+
+def test_extract_domain_name():
+    src = _load()
+    builder = DiffBuilder(paths=["/configuration/system/domain-name"], prune=[])
+    out = builder.build(src)
+    domain = out.find(".//system/domain-name")
+    assert domain is not None
+    assert domain.text == "example.net"
+    assert out.find(".//time-zone") is None
+
+
+def test_extract_time_zone():
+    src = _load()
+    builder = DiffBuilder(paths=["/configuration/system/time-zone"], prune=[])
+    out = builder.build(src)
+    tz = out.find(".//system/time-zone")
+    assert tz is not None
+    assert tz.text == "UTC"
+    assert out.find(".//domain-name") is None
+
+
 def test_replace_mode_annotates_category_roots():
     src = _load()
     builder = DiffBuilder(
