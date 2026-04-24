@@ -5,7 +5,8 @@ Reads selected configuration sections from the master and pushes them to a
 list of target devices, with safety rails (`commit confirmed`), drift
 detection, and per-target include lists.
 
-Design spec: [`docs/superpowers/specs/2026-04-22-srxsync-design.md`](docs/superpowers/specs/2026-04-22-srxsync-design.md)
+The rustperformance branch has all this and a rust based communications option.  
+more complex to intall hence the need for both.
 
 ## Install
 
