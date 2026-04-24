@@ -6,6 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "srxsync"
 version = "0.1.0"
 description = "Sync Juniper SRX configuration from a master to a fleet of targets"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = [
     "junos-eznc>=2.7",
