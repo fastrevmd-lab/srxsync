@@ -1,5 +1,16 @@
-# srxsync
-Unofficial / community project. This repository is an independent, community-driven project. It is not affiliated with, endorsed by, sponsored by, or supported by Hewlett Packard Enterprise or Juniper Networks. "HPE", "Juniper", "SRX", "JUNOS", "Security Director" and "Juniper Mist" are trademarks of their respective owners and are used here only to describe what this software interoperates with. Please direct support and licensing questions about those products to the respective vendors
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/mechub-mark.svg">
+    <img src="docs/assets/mechub-mark-light.svg" width="72" alt="mechub mark">
+  </picture>
+</p>
+
+<h1 align="center">srxsync</h1>
+
+<p align="center"><strong>Fleet sync for Juniper SRX firewalls</strong><br>
+<em>a mechub project — sovereign network-security automation</em></p>
+
+> **Unofficial / community project.** This repository is an independent, community-driven project. It is not affiliated with, endorsed by, sponsored by, or supported by Hewlett Packard Enterprise or Juniper Networks. "HPE", "Juniper", "SRX", "JUNOS", "Security Director" and "Juniper Mist" are trademarks of their respective owners and are used here only to describe what this software interoperates with. Please direct support and licensing questions about those products to the respective vendors.
 
 Keep a fleet of Juniper SRX firewalls in sync with a designated master SRX.
 Reads selected configuration sections from the master and pushes them to a
@@ -220,3 +231,14 @@ toolchain, while `rustperformance` is the opt-in performance track.
 ## License
 
 TBD.
+
+---
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/mechub-mark.svg">
+    <img src="docs/assets/mechub-mark-light.svg" width="28" alt="">
+  </picture><br>
+  <sub><code>a mechub project</code> · deterministic decides · the model explains · a human approves<br>
+  <a href="https://github.com/fastrevmd-lab">github.com/fastrevmd-lab</a></sub>
+</p>
