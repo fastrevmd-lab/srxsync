@@ -94,7 +94,7 @@ srxsync check --inventory inv.yaml [--verbose] [--transport {pyez,rustez}]
 
 | Flag | Meaning |
 |---|---|
-| `--replace` / `--merge` | Mutually exclusive. `--replace` annotates each category root with `replace="replace"` so Junos wipes slave-specific siblings within synced subtrees. `--merge` only adds/updates. |
+| `--replace` / `--merge` | Mutually exclusive. `--replace` annotates each category root with `replace="replace"` so Junos wipes slave-specific siblings within synced subtrees. `--merge` only adds/updates. security zones are always merged, never replaced. |
 | `--commit-confirmed N` | Commit with an N-minute auto-rollback timer; srxsync calls `commit` again to seal. Default: 5. |
 | `--max-parallel N` | Concurrent target workers. Default: 5. |
 | `--on-error continue\|abort` | On a per-target failure, continue (exit non-zero at end) or cancel remaining work. Default: continue. |
@@ -132,6 +132,35 @@ ntp:
 ```
 
 Then add `ntp` to the `include:` list of whichever targets should receive it.
+
+## Zone translation
+
+A target can use different zone names than the master. Add a `zone_map`
+(master zone → slave zone) to the target; unlisted zones keep their name.
+
+```yaml
+targets:
+  - host: srx-site-a.example.net
+    auth: { provider: env }
+    include: [objects, policies, nat, zones]
+    zone_map:
+      APP1: APPS
+      APP2: APPS
+      APP3: APPS
+```
+
+- Zone names are rewritten in policies, global policies, NAT rule-sets and
+  address-book `attach`.
+- Policy contexts that collapse into one (`APP1→UNTRUST`, `APP2→UNTRUST` →
+  `APPS→UNTRUST`) are concatenated in master order. A duplicate policy name in
+  a merged context fails that target. `APP1→APP2` becomes `APPS→APPS`.
+- **Zones are never deleted.** `security zones` is always merged, even with
+  `--replace`. A zone fed by several master zones (`APPS`) is pushed as an
+  empty zone: created if missing, otherwise left exactly as the slave has it.
+- srxsync warns (stderr, never fails) when it creates a zone, or a zone exists,
+  with no interfaces — bind one on the slave.
+- Entries in a master zone's *own* address-book are not carried to a merged
+  zone; keep shared objects in a global address-book.
 
 ## Secrets
 
