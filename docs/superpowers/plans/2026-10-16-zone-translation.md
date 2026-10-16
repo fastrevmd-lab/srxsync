@@ -10,11 +10,13 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-16-zone-translation-design.md`
 
+**Base:** rebased onto `origin/master` 7f85e0c (includes rustez transport #7, fail-closed drift #3).
+
 ## Global Constraints
 
 - Python `>=3.11`; no new runtime dependencies.
 - `ruff check srxsync tests` must pass (line length 100, rules `E,F,W,I,UP,B,SIM,RUF`).
-- `mypy srxsync` baseline is **1 pre-existing error** (`srxsync/secrets/keyring_provider.py:10 no-redef`). Do not add new errors; do not fix that one in this branch.
+- `mypy srxsync` must report no issues (baseline on `origin/master` 7f85e0c is clean; 76 unit tests pass).
 - Docstrings on every new public function/class (user preference).
 - Descriptive variable names; no single-letter names except loop indices.
 - Prefer early returns over nested if/else.
@@ -463,7 +465,7 @@ class ZoneTranslator:
 - [ ] **Step 5: Run tests**
 
 Run: `.venv/bin/pytest tests/unit -q && .venv/bin/ruff check srxsync tests && .venv/bin/mypy srxsync`
-Expected: tests pass, ruff clean, mypy shows only the 1 baseline error.
+Expected: tests pass, ruff clean, mypy clean.
 
 - [ ] **Step 6: Commit**
 
@@ -657,7 +659,7 @@ def _master_zone_names(config: etree._Element) -> list[str]:
 - [ ] **Step 4: Run tests**
 
 Run: `.venv/bin/pytest tests/unit -q && .venv/bin/ruff check srxsync tests && .venv/bin/mypy srxsync`
-Expected: all pass; mypy baseline only.
+Expected: all pass; mypy clean.
 
 - [ ] **Step 5: Commit**
 
@@ -903,7 +905,7 @@ Note: when the payload was pruned of interfaces, a zone created via a 1:1 rename
 - [ ] **Step 4: Run tests**
 
 Run: `.venv/bin/pytest tests/unit -q && .venv/bin/ruff check srxsync tests && .venv/bin/mypy srxsync`
-Expected: all pass; mypy baseline only.
+Expected: all pass; mypy clean.
 
 - [ ] **Step 5: Commit**
 
@@ -963,7 +965,7 @@ def test_non_merged_zone_content_still_compared():
 Run: `.venv/bin/pytest tests/unit/test_drift.py -q`
 Expected: FAIL (`TypeError: unexpected keyword argument 'merged_zones'`).
 
-- [ ] **Step 3: Implement** — `srxsync/drift.py`:
+- [ ] **Step 3: Implement** — `srxsync/drift.py` (upstream #3 already compares `findall()` lists in document order; keep that and its comment, only add the merged-zone handling):
 
 ```python
 from srxsync.diff import DiffBuilder
@@ -987,10 +989,11 @@ class DriftDetector:
         differing: list[str] = []
         for abs_path in self.paths:
             rel = abs_path.removeprefix("/configuration/")
-            src_node = src_scoped.find(rel)
-            tgt_node = tgt_scoped.find(rel)
-            zone_missing = abs_path == ZONES_PATH and missing_merged
-            if zone_missing or _canonicalize(src_node) != _canonicalize(tgt_node):
+            # (keep the existing comment block about comparing full sibling lists in order)
+            src_nodes = [_canonicalize(n) for n in src_scoped.findall(rel)]
+            tgt_nodes = [_canonicalize(n) for n in tgt_scoped.findall(rel)]
+            zone_missing = abs_path == ZONES_PATH and bool(missing_merged)
+            if zone_missing or src_nodes != tgt_nodes:
                 differing.append(abs_path)
         return DriftReport(host=host, differing_paths=differing)
 
@@ -1010,7 +1013,7 @@ class DriftDetector:
 - [ ] **Step 4: Run tests**
 
 Run: `.venv/bin/pytest tests/unit -q && .venv/bin/ruff check srxsync tests && .venv/bin/mypy srxsync`
-Expected: all pass; mypy baseline only.
+Expected: all pass; mypy clean.
 
 - [ ] **Step 5: Commit**
 
@@ -1082,7 +1085,7 @@ def _print_warnings(warnings: Iterable[str]) -> None:
 - [ ] **Step 4: Run tests**
 
 Run: `.venv/bin/pytest tests/unit -q && .venv/bin/ruff check srxsync tests && .venv/bin/mypy srxsync`
-Expected: all pass; mypy baseline only.
+Expected: all pass; mypy clean.
 
 - [ ] **Step 5: Commit**
 
@@ -1097,18 +1100,18 @@ git commit -m "feat(cli): print per-target warnings to stderr (#11)"
 
 **Files:**
 - Modify: `srxsync/orchestrator.py`
-- Test: `tests/unit/test_orchestrator.py` (new)
+- Test: `tests/unit/test_zone_orchestrator.py` (new — `tests/unit/test_orchestrator.py` already exists upstream with its own `_FakeTransport`; leave it untouched)
 
 **Interfaces:**
 - Consumes: `Target.zone_map` (T1), `ZoneTranslator`, `ZoneTranslationError`, `ZONES_PATH` (T2/T3), `zone_warnings` (T5), `DriftDetector(merged_zones=...)` (T6), `warnings` fields (T7).
 - Produces: push and check translate the source per target, emit warnings, and fail only the affected target on `ZoneTranslationError`.
 
 Behaviour:
-- **push** (`_push_target`): `translator = ZoneTranslator(target.zone_map)`; `translated = translator.apply(source_xml)`; connect; `payload = DiffBuilder(...).build(translated, mode=cfg.mode)`; `target_zones = t.fetch([ZONES_PATH])`; `warnings = unknown-key warnings + zone_warnings(payload, target_zones, host=target.host)`; return warnings on success and on dry-run. Catch `(TransportError, ZoneTranslationError)` together.
-- **check** (`_check_target`): translate the same way; `target_xml = t.fetch(paths)`, and if `ZONES_PATH` not in `paths` also `zone_view = t.fetch([ZONES_PATH])` else `zone_view = target_xml`; detector gets `merged_zones=translator.merged_zones(source_xml)`; warnings from `zone_warnings(DiffBuilder(paths, prune).build(translated), zone_view, host)` plus unknown keys. Catch `ZoneTranslationError` into `DriftLine(error=...)`.
+- **push** (`_push_target`): `translator = ZoneTranslator(target.zone_map)`; `translated = translator.apply(source_xml)`; connect; `payload = DiffBuilder(...).build(translated, mode=cfg.mode)`; `target_zones = t.fetch([ZONES_PATH])`; `warnings = unknown-key warnings + zone_warnings(payload, target_zones, host=target.host)`; return warnings on success and on dry-run. The existing broad `except Exception` (upstream #3) already turns `ZoneTranslationError` into a per-target failure — keep it unchanged.
+- **check** (`_check_target`): translate the same way; `target_xml = t.fetch(paths)`, and if `ZONES_PATH` not in `paths` also `zone_view = t.fetch([ZONES_PATH])` else `zone_view = target_xml`; detector gets `merged_zones=translator.merged_zones(source_xml)`; warnings from `zone_warnings(DiffBuilder(paths, prune).build(translated), zone_view, host)` plus unknown keys. The existing `except Exception` already maps `ZoneTranslationError` to `DriftLine(error=...)`.
 - Unknown-key warning text: `<host>: zone_map key <KEY> is not a zone on the master`.
 
-- [ ] **Step 1: Write the failing tests** `tests/unit/test_orchestrator.py`
+- [ ] **Step 1: Write the failing tests** `tests/unit/test_zone_orchestrator.py`
 
 ```python
 import asyncio
@@ -1232,14 +1235,14 @@ def test_check_reports_missing_merged_zone_and_warns_unknown_key():
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `.venv/bin/pytest tests/unit/test_orchestrator.py -q`
+Run: `.venv/bin/pytest tests/unit/test_zone_orchestrator.py -q`
 Expected: FAIL (untranslated contexts / no warnings).
 
 - [ ] **Step 3: Implement** — `srxsync/orchestrator.py`
 
 Imports:
 ```python
-from srxsync.zonemap import ZONES_PATH, ZoneTranslationError, ZoneTranslator
+from srxsync.zonemap import ZONES_PATH, ZoneTranslator
 from srxsync.zonewarn import zone_warnings
 ```
 
@@ -1272,9 +1275,9 @@ Replace `_push_target`'s body inside `try` and its `except` header:
                 duration_s=time.monotonic() - start,
                 warnings=warnings,
             )
-        except (TransportError, ZoneTranslationError) as e:
+        except Exception as e:  # unchanged from upstream
 ```
-(rest of the `except`/`finally` unchanged).
+(rest of the `except Exception`/`finally` unchanged — do **not** narrow it).
 
 Replace `_check_target`'s `try`/`except`:
 ```python
@@ -1301,7 +1304,8 @@ Replace `_check_target`'s `try`/`except`:
                 differing_paths=list(rep.differing_paths),
                 warnings=warnings,
             )
-        except (TransportError, ZoneTranslationError) as e:
+        except Exception as e:  # unchanged from upstream
+            # unchanged upstream comment + return:
             return DriftLine(host=target.host, in_sync=False, error=str(e))
 ```
 
@@ -1322,12 +1326,12 @@ Note: `merged_zones` takes the **untranslated** `source_xml` — it reads master
 - [ ] **Step 4: Run tests**
 
 Run: `.venv/bin/pytest tests/unit -q && .venv/bin/ruff check srxsync tests && .venv/bin/mypy srxsync`
-Expected: all pass; mypy baseline only.
+Expected: all pass; mypy clean.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add srxsync/orchestrator.py tests/unit/test_orchestrator.py
+git add srxsync/orchestrator.py tests/unit/test_zone_orchestrator.py
 git commit -m "feat(orchestrator): apply zone translation and warnings in push and check (#11)"
 ```
 
@@ -1382,27 +1386,15 @@ git commit -m "docs: document zone translation (#11)"
 
 ---
 
-### Task 10: Lab verification and port to `rustperformance`
+### Task 10: Final gate and lab dry run
 
 **Files:** none new.
+
+Note: `rustperformance` was merged into `master` in #7 (rustez transport now lives on master), so no separate port is needed.
 
 - [ ] **Step 1: Full local gate**
 
 Run: `.venv/bin/pytest tests/unit -q && .venv/bin/ruff check srxsync tests && .venv/bin/mypy srxsync`
-Expected: all pass; mypy baseline only.
+Expected: all pass; mypy clean.
 
 - [ ] **Step 2: Lab dry run (optional, needs lab inventory)** — with a `tests/lab.yaml` inventory that has a `zone_map`, run `srxsync push --inventory tests/lab.yaml --merge --dry-run` and confirm the `WARNING ... creating zone` line on stderr. Do not run a non-dry push without the user's go-ahead.
-
-- [ ] **Step 3: Port** — cherry-pick the code commits (Tasks 1–9, not the spec/plan docs) onto `rustperformance` in a new branch:
-
-```bash
-git switch -c feat/zone-translation-rust origin/rustperformance
-git cherry-pick <task-1-sha>^..<task-9-sha>
-```
-
-`inventory.py`, `diff.py`, `drift.py`, `orchestrator.py`, `results.py`, `zonemap.py` and `zonewarn.py` are identical or new on that branch. Expect a conflict only in `README.md` (that branch's README differs) and possibly `cli.py` (transport flag); resolve by keeping both sides' content.
-
-- [ ] **Step 4: Gate on the port branch**
-
-Run: `.venv/bin/pip install -e '.[dev]' && .venv/bin/pytest tests/unit -q && .venv/bin/ruff check srxsync tests`
-Expected: all pass. Report the result; do not push or open PRs without the user asking.

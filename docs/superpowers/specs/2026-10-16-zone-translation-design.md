@@ -3,7 +3,7 @@
 **Date:** 2026-10-16
 **Status:** Approved, ready for implementation planning
 **Issue:** #11 (add zone translation)
-**Branches:** `master`, then cherry-picked to `rustperformance`
+**Branches:** `master` (rustperformance was merged into master in #7, so no separate port)
 
 ## Purpose
 
