@@ -54,12 +54,15 @@ ships cp312 wheels only).
         include: [objects, policies, nat, qos, zones]
       - host: srx-site-b.example.net
         auth: { provider: env }
-        include: [policies, nat]
+        include: [policies, nat, zones]
+        zone_map:            # optional: master zone → slave zone
+          DMZ: EDGE
     ```
 
     Each target's `include:` explicitly lists the categories it will receive —
     no top-level default, no implicit inheritance. Read the inventory and you
-    know exactly what every device gets.
+    know exactly what every device gets. `zone_map` is optional; see
+    [Zone translation](#zone-translation).
 
 2. Provide credentials out-of-band (see [Secrets](#secrets)):
 
@@ -239,6 +242,11 @@ CLI → Orchestrator → (CategoryModel, DiffBuilder, DriftDetector, Transport)
   resolves category names → paths + prune rules.
 - **DiffBuilder** (`diff.py`) — extracts source subtrees, applies prune
   rules, annotates replace-mode category roots.
+- **ZoneMap** (`zonemap.py`) — applies a target's `zone_map`: rewrites
+  zone references, merges collapsed policy contexts, pushes N:1 zones as
+  empty shells.
+- **ZoneWarn** (`zonewarn.py`) — per-target warnings for payload zones
+  that are new, empty, or missing on the slave.
 - **DriftDetector** (`drift.py`) — canonical XML compare of source vs
   target within the synced scope.
 - **Transport** (`transport/base.py`) — abstract; two concrete backends
