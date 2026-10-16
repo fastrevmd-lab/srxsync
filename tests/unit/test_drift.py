@@ -129,3 +129,27 @@ def test_non_merged_zone_content_still_compared():
     tgt = _zones("<security-zone><name>UNTRUST</name><screen>b</screen></security-zone>")
     det = DriftDetector(paths=[ZONES], prune=[], merged_zones=frozenset({"APPS"}))
     assert det.diff(src, tgt).differing_paths == [ZONES]
+
+
+def test_slave_only_zone_is_not_drift():
+    src = _zones("<security-zone><name>UNTRUST</name></security-zone>")
+    tgt = _zones(
+        "<security-zone><name>UNTRUST</name></security-zone>"
+        "<security-zone><name>MGMT</name></security-zone>"
+    )
+    det = DriftDetector(paths=[ZONES], prune=[])
+    assert det.diff(src, tgt).in_sync is True
+
+
+def test_slave_only_zone_ignored_but_shared_zone_drift_counts():
+    src = _zones(
+        "<security-zone><name>APPS</name></security-zone>"
+        "<security-zone><name>UNTRUST</name><screen>a</screen></security-zone>"
+    )
+    tgt = _zones(
+        "<security-zone><name>APPS</name><screen>local</screen></security-zone>"
+        "<security-zone><name>UNTRUST</name><screen>b</screen></security-zone>"
+        "<security-zone><name>MGMT</name></security-zone>"
+    )
+    det = DriftDetector(paths=[ZONES], prune=[], merged_zones=frozenset({"APPS"}))
+    assert det.diff(src, tgt).differing_paths == [ZONES]

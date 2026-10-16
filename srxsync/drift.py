@@ -31,6 +31,8 @@ class DriftDetector:
         src_scoped = builder.build(source)
         tgt_scoped = builder.build(target)
         missing_merged = self._missing_merged_zones(tgt_scoped)
+        if ZONES_PATH in self.paths:
+            self._drop_slave_only_zones(src_scoped, tgt_scoped)
         self._drop_merged_zones(src_scoped)
         self._drop_merged_zones(tgt_scoped)
 
@@ -56,6 +58,21 @@ class DriftDetector:
             name.text for name in target_scoped.xpath("security/zones/security-zone/name")
         }
         return set(self.merged_zones) - present
+
+    def _drop_slave_only_zones(
+        self, source_scoped: etree._Element, target_scoped: etree._Element
+    ) -> None:
+        """Ignore zones only the target has: push never deletes zones, so they are unfixable."""
+        source_names = {
+            name.text for name in source_scoped.xpath("security/zones/security-zone/name")
+        }
+        for zone in target_scoped.xpath("security/zones/security-zone"):
+            if zone.findtext("name") not in source_names:
+                zone.getparent().remove(zone)
+        if source_scoped.xpath("security/zones"):
+            return
+        for zones in target_scoped.xpath("security/zones[not(*)]"):
+            zones.getparent().remove(zones)
 
     def _drop_merged_zones(self, scoped: etree._Element) -> None:
         """Remove merged zones' security-zone elements so their content is not compared."""
