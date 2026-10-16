@@ -94,7 +94,7 @@ srxsync check --inventory inv.yaml [--verbose] [--transport {pyez,rustez}]
 
 | Flag | Meaning |
 |---|---|
-| `--replace` / `--merge` | Mutually exclusive. `--replace` annotates each category root with `replace="replace"` so Junos wipes slave-specific siblings within synced subtrees. `--merge` only adds/updates. security zones are always merged, never replaced. |
+| `--replace` / `--merge` | Mutually exclusive. `--replace` annotates each category root with `replace="replace"` so Junos wipes slave-specific siblings within synced subtrees. `--merge` only adds/updates. Security zones are always merged, never replaced. |
 | `--commit-confirmed N` | Commit with an N-minute auto-rollback timer; srxsync calls `commit` again to seal. Default: 5. |
 | `--max-parallel N` | Concurrent target workers. Default: 5. |
 | `--on-error continue\|abort` | On a per-target failure, continue (exit non-zero at end) or cancel remaining work. Default: continue. |
@@ -159,6 +159,13 @@ targets:
   empty zone: created if missing, otherwise left exactly as the slave has it.
 - srxsync warns (stderr, never fails) when it creates a zone, or a zone exists,
   with no interfaces — bind one on the slave.
+- Translation is single-pass: `{A: B, B: C}` maps A to B and B to C (no chaining).
+- A warning is also printed when a translated policy references a zone that is
+  missing on the slave and `zones` is not in `include` (the slave commit will fail).
+- A `zone_map` key that isn't a zone on the master prints a warning (likely a
+  typo) and is ignored.
+- `check` only reports zones srxsync manages: zones that exist only on the slave
+  are not drift, and N:1 zones are checked for existence only.
 - Entries in a master zone's *own* address-book are not carried to a merged
   zone; keep shared objects in a global address-book.
 
