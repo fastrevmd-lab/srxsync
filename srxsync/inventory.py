@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +31,7 @@ class Target:
     host: str
     auth: Auth
     include: list[str]
+    zone_map: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -90,4 +91,26 @@ def _parse_target(raw: dict[str, Any], *, known_categories: set[str]) -> Target:
         host=raw["host"],
         auth=_parse_auth(raw["auth"]),
         include=include,
+        zone_map=_parse_zone_map(raw["host"], raw.get("zone_map")),
     )
+
+
+def _parse_zone_map(host: str, raw: Any) -> dict[str, str]:
+    """Validate a target's master→slave zone_map; None or absent means no translation."""
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise InventoryError(f"target {host} zone_map must be a mapping")
+    for master_zone, slave_zone in raw.items():
+        valid = (
+            isinstance(master_zone, str)
+            and isinstance(slave_zone, str)
+            and master_zone
+            and slave_zone
+        )
+        if not valid:
+            raise InventoryError(
+                f"target {host} zone_map entries must be non-empty strings: "
+                f"{master_zone!r}: {slave_zone!r}"
+            )
+    return dict(raw)

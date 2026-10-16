@@ -98,3 +98,58 @@ def test_detects_system_category_drift_granularity():
     assert "/configuration/system/name-server" in rep.differing_paths
     assert "/configuration/system/syslog" not in rep.differing_paths
     assert "/configuration/system/domain-name" not in rep.differing_paths
+
+
+def _zones(*zones: str) -> etree._Element:
+    body = "".join(zones)
+    return etree.fromstring(
+        f"<configuration><security><zones>{body}</zones></security></configuration>"
+    )
+
+
+ZONES = "/configuration/security/zones"
+
+
+def test_merged_zone_content_ignored():
+    src = _zones("<security-zone><name>APPS</name></security-zone>")
+    tgt = _zones("<security-zone><name>APPS</name><screen>local</screen></security-zone>")
+    det = DriftDetector(paths=[ZONES], prune=[], merged_zones=frozenset({"APPS"}))
+    assert det.diff(src, tgt).in_sync is True
+
+
+def test_merged_zone_missing_on_target_is_drift():
+    src = _zones("<security-zone><name>APPS</name></security-zone>")
+    tgt = _zones()
+    det = DriftDetector(paths=[ZONES], prune=[], merged_zones=frozenset({"APPS"}))
+    assert det.diff(src, tgt).differing_paths == [ZONES]
+
+
+def test_non_merged_zone_content_still_compared():
+    src = _zones("<security-zone><name>UNTRUST</name><screen>a</screen></security-zone>")
+    tgt = _zones("<security-zone><name>UNTRUST</name><screen>b</screen></security-zone>")
+    det = DriftDetector(paths=[ZONES], prune=[], merged_zones=frozenset({"APPS"}))
+    assert det.diff(src, tgt).differing_paths == [ZONES]
+
+
+def test_slave_only_zone_is_not_drift():
+    src = _zones("<security-zone><name>UNTRUST</name></security-zone>")
+    tgt = _zones(
+        "<security-zone><name>UNTRUST</name></security-zone>"
+        "<security-zone><name>MGMT</name></security-zone>"
+    )
+    det = DriftDetector(paths=[ZONES], prune=[])
+    assert det.diff(src, tgt).in_sync is True
+
+
+def test_slave_only_zone_ignored_but_shared_zone_drift_counts():
+    src = _zones(
+        "<security-zone><name>APPS</name></security-zone>"
+        "<security-zone><name>UNTRUST</name><screen>a</screen></security-zone>"
+    )
+    tgt = _zones(
+        "<security-zone><name>APPS</name><screen>local</screen></security-zone>"
+        "<security-zone><name>UNTRUST</name><screen>b</screen></security-zone>"
+        "<security-zone><name>MGMT</name></security-zone>"
+    )
+    det = DriftDetector(paths=[ZONES], prune=[], merged_zones=frozenset({"APPS"}))
+    assert det.diff(src, tgt).differing_paths == [ZONES]

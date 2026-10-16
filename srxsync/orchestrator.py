@@ -17,6 +17,8 @@ from srxsync.inventory import Inventory, Target
 from srxsync.results import DriftLine, DriftSummary, PushSummary, TargetResult
 from srxsync.secrets import get_secret
 from srxsync.transport import PyEZTransport, Transport
+from srxsync.zonemap import ZONES_PATH, ZoneTranslator
+from srxsync.zonewarn import zone_warnings
 
 
 @dataclass(frozen=True)
@@ -112,15 +114,20 @@ class Orchestrator:
         t = self._tx()
         try:
             paths, prune = self._cats.resolve(target.include)
+            translator = ZoneTranslator(target.zone_map)
+            translated = translator.apply(source_xml)
             secret = get_secret(host=target.host, auth=target.auth)
             t.connect(target.host, secret.username, secret.password, ssh_key=secret.ssh_key_path)
-            payload = DiffBuilder(paths=paths, prune=list(prune)).build(source_xml, mode=cfg.mode)
+            payload = DiffBuilder(paths=paths, prune=list(prune)).build(translated, mode=cfg.mode)
+            warnings = _unknown_key_warnings(translator, source_xml, target.host)
+            warnings += zone_warnings(payload, t.fetch([ZONES_PATH]), host=target.host)
 
             if cfg.dry_run:
                 return TargetResult(
                     host=target.host,
                     ok=True,
                     duration_s=time.monotonic() - start,
+                    warnings=warnings,
                 )
 
             t.load(payload, mode=cfg.mode)
@@ -130,6 +137,7 @@ class Orchestrator:
                 host=target.host,
                 ok=True,
                 duration_s=time.monotonic() - start,
+                warnings=warnings,
             )
         except Exception as e:
             # Deliberately broad: lock, timeout, and secret/Vault failures are
@@ -153,15 +161,26 @@ class Orchestrator:
         t = self._tx()
         try:
             paths, prune = self._cats.resolve(target.include)
+            translator = ZoneTranslator(target.zone_map)
+            translated = translator.apply(source_xml)
             secret = get_secret(host=target.host, auth=target.auth)
             t.connect(target.host, secret.username, secret.password, ssh_key=secret.ssh_key_path)
             target_xml = t.fetch(paths)
-            detector = DriftDetector(paths=paths, prune=list(prune))
-            rep: DriftReport = detector.diff(source_xml, target_xml, host=target.host)
+            zone_view = target_xml if ZONES_PATH in paths else t.fetch([ZONES_PATH])
+            detector = DriftDetector(
+                paths=paths,
+                prune=list(prune),
+                merged_zones=translator.merged_zones(source_xml),
+            )
+            rep: DriftReport = detector.diff(translated, target_xml, host=target.host)
+            payload = DiffBuilder(paths=paths, prune=list(prune)).build(translated)
+            warnings = _unknown_key_warnings(translator, source_xml, target.host)
+            warnings += zone_warnings(payload, zone_view, host=target.host)
             return DriftLine(
                 host=target.host,
                 in_sync=rep.in_sync,
                 differing_paths=list(rep.differing_paths),
+                warnings=warnings,
             )
         except Exception as e:
             # See _push_target: lock, timeout, and secret/Vault failures are
@@ -170,3 +189,13 @@ class Orchestrator:
         finally:
             with contextlib.suppress(Exception):
                 t.close()
+
+
+def _unknown_key_warnings(
+    translator: ZoneTranslator, source_xml: etree._Element, host: str
+) -> list[str]:
+    """Warn about zone_map keys that name no zone on the master (likely typos)."""
+    return [
+        f"{host}: zone_map key {key} is not a zone on the master"
+        for key in translator.unknown_keys(source_xml)
+    ]

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from srxsync.cli import build_parser
+from srxsync.cli import _print_drift_summary, _print_push_summary, build_parser
+from srxsync.results import DriftLine, DriftSummary, PushSummary, TargetResult
 
 
 def test_push_requires_mode():
@@ -97,3 +98,21 @@ def test_transport_rejects_unknown_value() -> None:
     parser = build_parser()
     with pytest.raises(SystemExit):
         parser.parse_args(["push", "--inventory", "inv.yaml", "--merge", "--transport", "grpc"])
+
+
+def test_push_summary_prints_warnings_to_stderr(capsys):
+    summary = PushSummary(
+        results=[TargetResult(host="srx-a", ok=True, warnings=["srx-a: creating zone APPS"])]
+    )
+    _print_push_summary(summary)
+    captured = capsys.readouterr()
+    assert "WARNING srx-a: creating zone APPS" in captured.err
+    assert "WARNING" not in captured.out
+
+
+def test_drift_summary_prints_warnings_to_stderr(capsys):
+    summary = DriftSummary(
+        reports=[DriftLine(host="srx-a", in_sync=True, warnings=["srx-a: zone APPS exists"])]
+    )
+    _print_drift_summary(summary, verbose=False)
+    assert "WARNING srx-a: zone APPS exists" in capsys.readouterr().err

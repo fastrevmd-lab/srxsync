@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 
 from srxsync.categories import CategoryModel
@@ -99,6 +100,7 @@ def _print_push_summary(summary: PushSummary) -> None:
         status = "OK" if r.ok else "FAIL"
         err = r.error or ""
         print(f"{r.host:40s} {status:10s} {r.duration_s:>8.2f}s  {err}")
+    _print_warnings(warning for result in summary.results for warning in result.warnings)
 
 
 def _print_drift_summary(summary: DriftSummary, *, verbose: bool) -> None:
@@ -116,6 +118,13 @@ def _print_drift_summary(summary: DriftSummary, *, verbose: bool) -> None:
             if verbose:
                 for p in line.differing_paths:
                     print(f"      - {p}")
+    _print_warnings(warning for line in summary.reports for warning in line.warnings)
+
+
+def _print_warnings(warnings: Iterable[str]) -> None:
+    """Print each warning to stderr prefixed with ``WARNING ``."""
+    for warning in warnings:
+        print(f"WARNING {warning}", file=sys.stderr)
 
 
 if __name__ == "__main__":

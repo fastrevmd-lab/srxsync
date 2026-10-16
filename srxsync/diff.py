@@ -7,6 +7,8 @@ from typing import Literal
 
 from lxml import etree
 
+from srxsync.zonemap import ZONES_PATH
+
 
 @dataclass(frozen=True)
 class DiffBuilder:
@@ -38,8 +40,13 @@ class DiffBuilder:
         the element at that path in the payload and set replace="replace".
         Junos then replaces that subtree wholesale on the target device — the
         semantic users expect from --replace.
+
+        security/zones is always merged: srxsync never deletes a slave zone, and
+        replacing it would also wipe the (pruned) interface bindings.
         """
         for abs_path in self.paths:
+            if abs_path == ZONES_PATH:
+                continue
             rel = abs_path.removeprefix("/configuration/")
             for node in out.xpath(rel):
                 node.set("replace", "replace")

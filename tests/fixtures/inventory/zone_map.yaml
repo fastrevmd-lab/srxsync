@@ -1,0 +1,14 @@
+source:
+  host: srx-master.example.net
+  auth: { provider: env }
+targets:
+  - host: srx-a.example.net
+    auth: { provider: env }
+    include: [policies, zones]
+    zone_map:
+      APP1: APPS
+      APP2: APPS
+      APP3: APPS
+  - host: srx-b.example.net
+    auth: { provider: env }
+    include: [policies]

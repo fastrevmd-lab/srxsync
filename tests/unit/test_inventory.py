@@ -54,3 +54,34 @@ def test_unknown_category_raises():
 def test_missing_file_raises():
     with pytest.raises(InventoryError, match="not found"):
         load_inventory(FIXTURES / "does_not_exist.yaml", known_categories=KNOWN_CATEGORIES)
+
+
+def test_zone_map_parsed():
+    inv = load_inventory(FIXTURES / "zone_map.yaml", known_categories=KNOWN_CATEGORIES)
+    assert inv.targets[0].zone_map == {"APP1": "APPS", "APP2": "APPS", "APP3": "APPS"}
+
+
+def test_zone_map_defaults_empty():
+    inv = load_inventory(FIXTURES / "zone_map.yaml", known_categories=KNOWN_CATEGORIES)
+    assert inv.targets[1].zone_map == {}
+
+
+def test_zone_map_must_be_mapping():
+    with pytest.raises(InventoryError, match="zone_map must be a mapping"):
+        load_inventory(FIXTURES / "zone_map_bad.yaml", known_categories=KNOWN_CATEGORIES)
+
+
+@pytest.mark.parametrize("bad_map", [{"APP1": ""}, {"": "APPS"}, {"APP1": 5}, {"APP1": None}])
+def test_zone_map_entries_must_be_non_empty_strings(tmp_path, bad_map):
+    import yaml
+
+    doc = {
+        "source": {"host": "m", "auth": {"provider": "env"}},
+        "targets": [
+            {"host": "t", "auth": {"provider": "env"}, "include": ["policies"], "zone_map": bad_map}
+        ],
+    }
+    inv_file = tmp_path / "inv.yaml"
+    inv_file.write_text(yaml.safe_dump(doc))
+    with pytest.raises(InventoryError, match="zone_map entries must be non-empty strings"):
+        load_inventory(inv_file, known_categories=KNOWN_CATEGORIES)

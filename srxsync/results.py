@@ -11,6 +11,7 @@ class TargetResult:
     ok: bool
     error: str | None = None
     duration_s: float = 0.0
+    warnings: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,7 @@ class DriftLine:
     in_sync: bool
     differing_paths: list[str] = field(default_factory=list)
     error: str | None = None
+    warnings: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

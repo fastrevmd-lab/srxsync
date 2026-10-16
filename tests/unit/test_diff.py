@@ -131,3 +131,14 @@ def test_list_category_keeps_every_sibling_entry():
     assert len(servers) == 2
     names = {s.findtext("name") for s in servers}
     assert names == {"8.8.8.8", "1.1.1.1"}
+
+
+def test_replace_mode_never_marks_zones():
+    src = _load()
+    builder = DiffBuilder(
+        paths=["/configuration/security/policies", "/configuration/security/zones"],
+        prune=["security-zone/interfaces"],
+    )
+    out = builder.build(src, mode="replace")
+    assert out.find(".//policies").get("replace") == "replace"
+    assert out.find(".//zones").get("replace") is None
