@@ -18,6 +18,9 @@ targets:
     auth:
       provider: env
     include: [policies]
+    # Optional: rename master zones on this target (master → slave).
+    # zone_map:
+    #   trust: inside
   - host: 192.0.2.12
     auth:
       provider: env
