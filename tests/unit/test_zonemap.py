@@ -133,3 +133,32 @@ def test_unknown_keys():
 def test_unknown_keys_empty_when_zones_not_fetched():
     config = etree.fromstring("<configuration><security><policies/></security></configuration>")
     assert ZoneTranslator({"NOPE": "APPS"}).unknown_keys(config) == []
+
+
+def test_merged_zones_ignores_map_keys_absent_on_master():
+    translator = ZoneTranslator({"APP1": "APPS", "TYPO": "APPS"})
+    assert translator.merged_zones(_load()) == frozenset()
+    translated = translator.apply(_load())
+    apps = [
+        zone
+        for zone in translated.xpath("security/zones/security-zone")
+        if zone.findtext("name") == "APPS"
+    ]
+    assert len(apps) == 1
+    assert apps[0].find("host-inbound-traffic") is not None
+
+
+def test_merged_zones_empty_without_master_zones():
+    config = etree.fromstring("<configuration><security/></configuration>")
+    assert ZoneTranslator(APPS_MAP).merged_zones(config) == frozenset()
+
+
+def test_apply_maps_into_existing_zone_yields_single_empty_shell():
+    translated = ZoneTranslator({"APP1": "UNTRUST"}).apply(_load())
+    untrust = [
+        zone
+        for zone in translated.xpath("security/zones/security-zone")
+        if zone.findtext("name") == "UNTRUST"
+    ]
+    assert len(untrust) == 1
+    assert [child.tag for child in untrust[0]] == ["name"]

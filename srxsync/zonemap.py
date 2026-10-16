@@ -69,9 +69,13 @@ class ZoneTranslator:
 
     def merged_zones(self, config: etree._Element) -> frozenset[str]:
         """Slave zones fed by two or more master zones (N:1); their settings stay slave-owned."""
+        if not config.xpath("security/zones"):
+            return frozenset()
         master_zones = set(_master_zone_names(config))
         preimage_sizes: dict[str, int] = {}
         for master_zone in self.zone_map:
+            if master_zone not in master_zones:
+                continue
             slave_zone = self.zone_map[master_zone]
             preimage_sizes[slave_zone] = preimage_sizes.get(slave_zone, 0) + 1
         for master_zone in master_zones:
